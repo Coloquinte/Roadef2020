@@ -1,5 +1,7 @@
 // Copyright (C) 2019 Gabriel Gouvine - All Rights Reserved
 
+#include "problem.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -76,6 +78,7 @@ int main(int argc, char **argv) {
   po::variables_map vm = parseArguments(argc, argv);
 
   RoadefParams params = readParams(vm);
+  Problem pb = Problem::readFile(params.instance);
 
   return 0;
 }
