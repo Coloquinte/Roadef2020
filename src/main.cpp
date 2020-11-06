@@ -80,6 +80,12 @@ int main(int argc, char **argv) {
   RoadefParams params = readParams(vm);
   Problem pb = Problem::readFile(params.instance);
 
+  cout << "Problem with "
+       << pb.nbInterventions() << " interventions "
+       << pb.nbResources() << " resources "
+       << pb.nbTimesteps() << " timesteps "
+       << endl;
+
   return 0;
 }
 

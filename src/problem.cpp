@@ -6,25 +6,147 @@
 #include <iostream>
 #include <iomanip>
 
-Problem Problem::read(std::istream &is) {
+using namespace std;
+
+const string RESOURCES_STR = "Resources";
+const string SEASONS_STR = "Seasons";
+const string INTERVENTIONS_STR = "Interventions";
+const string EXCLUSIONS_STR = "Exclusions";
+const string T_STR = "T";
+const string SCENARIO_NUMBER = "Scenarios_number";
+const string RESOURCE_CHARGE_STR = "workload";
+const string TMAX_STR = "tmax";
+const string DELTA_STR = "Delta";
+const string MAX_STR = "max";
+const string MIN_STR = "min";
+const string RISK_STR = "risk";
+const string START_STR = "start";
+const string QUANTILE_STR = "Quantile";
+const string ALPHA_STR = "Alpha";
+const string MODEL_STR = "Model";
+
+
+int readInt(nlohmann::json &j) {
+    if (j.is_number()) {
+        return j.get<int>();
+    }
+    else {
+        return stoi(j.get<string>());
+    }
+}
+
+double readDouble(nlohmann::json &j) {
+    if (j.is_number()) {
+        return j.get<double>();
+    }
+    else {
+        return stod(j.get<string>());
+    }
+}
+
+string readString(nlohmann::json &j) {
+    if (j.is_string()) {
+        return j.get<string>();
+    }
+    else {
+        return to_string(j.get<int>());
+    }
+}
+
+
+Problem Problem::read(istream &is) {
     Problem pb;
     // Read the JSON
-    nlohmann::json j;
-    is >> j;
-    // Initialize the object
+    nlohmann::json js;
+    is >> js;
+
+    auto exclusionsJ = js[EXCLUSIONS_STR];
+    auto resourcesJ = js[RESOURCES_STR];
+    auto interventionsJ = js[INTERVENTIONS_STR];
+
+    // Basic data about the problem
+    for (const auto &it : interventionsJ.items()) {
+        pb.interventionNames_.push_back(it.key());
+    }
+    for (const auto &it : resourcesJ.items()) {
+        pb.resourceNames_.push_back(it.key());
+    }
+    pb.nbTimesteps_ = js[T_STR].get<int>();
+    for (string intName : pb.interventionNames_) {
+        pb.maxStartTimes_.push_back(readInt(interventionsJ[intName][TMAX_STR]));
+    }
+
+    // Exclusions
+    // TODO
+
+    // Resources
+    for (string resourceName : pb.resourceNames_) {
+        pb.resources_.lowerBound_.push_back(resourcesJ[resourceName][MIN_STR].get<vector<double> >());
+        pb.resources_.upperBound_.push_back(resourcesJ[resourceName][MAX_STR].get<vector<double> >());
+    }
+    for (int maxStartTime : pb.maxStartTimes_) {
+        pb.resources_.demands_.push_back(vector<vector<Resources::ResourceContribution> >(maxStartTime));
+    }
+    for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
+        string interventionName = pb.interventionNames_[i];
+        auto interventionWorkload = interventionsJ[interventionName][RESOURCE_CHARGE_STR];
+        for (size_t j = 0; j < pb.resourceNames_.size(); ++j) {
+            string resourceName = pb.resourceNames_[j];
+            if (interventionWorkload.count(resourceName)) {
+                for (const auto &elt1 : interventionWorkload[resourceName].items()) {
+                    int resourceTime = stoi(elt1.key())-1;
+                    for (const auto &elt2 : elt1.value().items()) {
+                        int interventionTime = stoi(elt2.key())-1;
+                        double usage = elt2.value().get<double>();
+                        assert (interventionTime < pb.resources_.demands_[i].size());
+                        pb.resources_.demands_[i][interventionTime].emplace_back(usage, resourceTime, j);
+                    }
+                }
+            }
+        }
+    }
+
+    // Mean risk
+    double alpha = readDouble(js[ALPHA_STR]);
+    vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
+    pb.meanRisk_.contribs_.resize(pb.nbInterventions(), vector<double>(pb.nbTimesteps(), 0.0));
+    for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
+        string interventionName = pb.interventionNames_[i];
+        auto intervention = interventionsJ[interventionName];
+        auto interventionRisk = intervention[RISK_STR];
+        auto deltaArray = intervention[DELTA_STR];
+        for (int startTime = 0; startTime < pb.maxStartTime(i); ++startTime) {
+            double meanContrib = 0.0;
+            int delta = readInt(deltaArray[startTime]);
+            for (int t = startTime; t < startTime + delta; ++t) {
+                double factor = alpha;
+                factor /= scenarioNumbers[t];
+                factor /= pb.nbTimesteps();
+                vector<double> riskArray = interventionRisk[to_string(t+1)][to_string(startTime+1)];
+                for (double r : riskArray) {
+                    meanContrib += factor * r;
+                }
+            }
+            pb.meanRisk_.contribs_[i][startTime] = meanContrib;
+        }
+    }
+
+    // Quantile risk
+    // TODO
+
     return pb;
 }
 
-void Problem::write(std::ostream &os) {
+void Problem::write(ostream &os) {
 }
 
-Problem Problem::readFile(const std::string &fname) {
-    std::ifstream f(fname);
+Problem Problem::readFile(const string &fname) {
+    ifstream f(fname);
     return read(f);
 }
 
-void Problem::writeFile(const std::string &fname) {
-    std::ofstream f(fname);
+void Problem::writeFile(const string &fname) {
+    ofstream f(fname);
     return write(f);
 }
 
