@@ -75,6 +75,9 @@ Problem Problem::read(istream &is) {
     for (string intName : pb.interventionNames_) {
         pb.maxStartTimes_.push_back(readInt(interventionsJ[intName][TMAX_STR]));
     }
+    double alpha = readDouble(js[ALPHA_STR]);
+    double quantile = readDouble(js[QUANTILE_STR]);
+    vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
 
     // Exclusions
     // TODO
@@ -107,8 +110,6 @@ Problem Problem::read(istream &is) {
     }
 
     // Mean risk
-    double alpha = readDouble(js[ALPHA_STR]);
-    vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
     pb.meanRisk_.contribs_.resize(pb.nbInterventions(), vector<double>(pb.nbTimesteps(), 0.0));
     for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
         string interventionName = pb.interventionNames_[i];
@@ -123,6 +124,7 @@ Problem Problem::read(istream &is) {
                 factor /= scenarioNumbers[t];
                 factor /= pb.nbTimesteps();
                 vector<double> riskArray = interventionRisk[to_string(t+1)][to_string(startTime+1)];
+                assert (riskArray.size() == scenarioNumbers[t]);
                 for (double r : riskArray) {
                     meanContrib += factor * r;
                 }
@@ -132,21 +134,37 @@ Problem Problem::read(istream &is) {
     }
 
     // Quantile risk
-    // TODO
+    pb.quantileRisk_.nbScenarios_ = scenarioNumbers;
+    for (int num : scenarioNumbers) {
+        pb.quantileRisk_.quantileScenarios_.push_back(ceil(num * quantile) - 1);
+    }
+    for (int maxStartTime : pb.maxStartTimes_) {
+        pb.quantileRisk_.contribs_.push_back(vector<vector<QuantileRisk::RiskContribution> >(maxStartTime));
+    }
+    for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
+        string interventionName = pb.interventionNames_[i];
+        auto intervention = interventionsJ[interventionName];
+        auto interventionRisk = intervention[RISK_STR];
+        auto deltaArray = intervention[DELTA_STR];
+        for (int startTime = 0; startTime < pb.maxStartTime(i); ++startTime) {
+            int delta = readInt(deltaArray[startTime]);
+            for (int t = startTime; t < startTime + delta; ++t) {
+                double factor = (1.0 - alpha) / pb.nbTimesteps();
+                vector<double> riskArray = interventionRisk[to_string(t+1)][to_string(startTime+1)];
+                assert (riskArray.size() == scenarioNumbers[t]);
+                for (double &r : riskArray) {
+                    r *= factor;
+                }
+                pb.quantileRisk_.contribs_[i][startTime].emplace_back(t, riskArray);
+            }
+        }
+    }
 
     return pb;
-}
-
-void Problem::write(ostream &os) {
 }
 
 Problem Problem::readFile(const string &fname) {
     ifstream f(fname);
     return read(f);
-}
-
-void Problem::writeFile(const string &fname) {
-    ofstream f(fname);
-    return write(f);
 }
 

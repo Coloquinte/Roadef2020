@@ -58,8 +58,9 @@ class MeanRisk {
 class QuantileRisk {
   protected:
     struct RiskContribution {
-        std::vector<double> risks;
         int time;
+        std::vector<double> risks;
+        RiskContribution(int t, const std::vector<double> &r) : time(t), risks(r) {}
     };
     // By time
     std::vector<int> nbScenarios_;
@@ -81,8 +82,6 @@ class Problem {
   public:
     static Problem read(std::istream &);
     static Problem readFile(const std::string&);
-    void write(std::ostream &);
-    void writeFile(const std::string&);
 
     int nbResources() const { return resourceNames_.size(); }
     int nbInterventions() const { return interventionNames_.size(); }
