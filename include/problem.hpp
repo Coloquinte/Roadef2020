@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 #include <vector>
+#include <unordered_map>
 
 class Exclusions {
   protected:
@@ -86,12 +87,16 @@ class Problem {
     int nbResources() const { return resourceNames_.size(); }
     int nbInterventions() const { return interventionNames_.size(); }
     int nbTimesteps() const { return nbTimesteps_; }
+    int nbSeasons() const { return nbSeasons_; }
     int maxStartTime(int intervention) const { return maxStartTimes_[intervention]; }
 
   private:
     std::vector<std::string> interventionNames_;
     std::vector<std::string> resourceNames_;
+    std::unordered_map<std::string, int> interventionMappings_;
+    std::unordered_map<std::string, int> resourceMappings_;
     int nbTimesteps_;
+    int nbSeasons_;
     Exclusions exclusions_;
     Resources resources_;
     MeanRisk meanRisk_;

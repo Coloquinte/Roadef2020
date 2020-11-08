@@ -26,7 +26,7 @@ const string ALPHA_STR = "Alpha";
 const string MODEL_STR = "Model";
 
 
-int readInt(nlohmann::json &j) {
+int readInt(const nlohmann::json &j) {
     if (j.is_number()) {
         return j.get<int>();
     }
@@ -35,7 +35,7 @@ int readInt(nlohmann::json &j) {
     }
 }
 
-double readDouble(nlohmann::json &j) {
+double readDouble(const nlohmann::json &j) {
     if (j.is_number()) {
         return j.get<double>();
     }
@@ -44,7 +44,7 @@ double readDouble(nlohmann::json &j) {
     }
 }
 
-string readString(nlohmann::json &j) {
+string readString(const nlohmann::json &j) {
     if (j.is_string()) {
         return j.get<string>();
     }
@@ -65,13 +65,16 @@ Problem Problem::read(istream &is) {
     auto interventionsJ = js[INTERVENTIONS_STR];
 
     // Basic data about the problem
+    pb.nbSeasons_ = js[SEASONS_STR].size();
+    pb.nbTimesteps_ = readInt(js[T_STR]);
     for (const auto &it : interventionsJ.items()) {
+        pb.interventionMappings_.emplace(it.key(), pb.interventionNames_.size());
         pb.interventionNames_.push_back(it.key());
     }
     for (const auto &it : resourcesJ.items()) {
+        pb.resourceMappings_.emplace(it.key(), pb.resourceNames_.size());
         pb.resourceNames_.push_back(it.key());
     }
-    pb.nbTimesteps_ = js[T_STR].get<int>();
     for (string intName : pb.interventionNames_) {
         pb.maxStartTimes_.push_back(readInt(interventionsJ[intName][TMAX_STR]));
     }
@@ -80,7 +83,45 @@ Problem Problem::read(istream &is) {
     vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
 
     // Exclusions
-    // TODO
+    pb.exclusions_.seasonInterdictions_.resize(pb.nbSeasons(), std::vector<std::vector<int> >(pb.nbInterventions()));
+    for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
+        string interventionName = pb.interventionNames_[i];
+        auto intervention = interventionsJ[interventionName];
+        auto deltaArray = intervention[DELTA_STR];
+        assert (deltaArray.size() >= pb.maxStartTime(i));
+        vector<int> durations;
+        for (int startTime = 0; startTime < pb.maxStartTime(i); ++startTime) {
+            durations.push_back(readInt(deltaArray[startTime]));
+        }
+        pb.exclusions_.durations_.push_back(durations);
+    }
+    auto exclusions = js[EXCLUSIONS_STR];
+    vector<int> timeToSeason(pb.nbTimesteps(), -1);
+    int seasonCnt = 0;
+    for (const auto &elt : js[SEASONS_STR].items()) {
+        string seasonName = elt.key();
+        for (const auto &exclusion : exclusions.items()) {
+            assert (exclusion.value().size() == 3);
+            string seasonExcl = exclusion.value()[2].get<string>();
+            if (seasonExcl != seasonName) {
+                continue;
+            }
+            int i1 = pb.interventionMappings_.at(exclusion.value()[0].get<string>());
+            int i2 = pb.interventionMappings_.at(exclusion.value()[1].get<string>());
+            pb.exclusions_.seasonInterdictions_[seasonCnt][i1].push_back(i2);
+            pb.exclusions_.seasonInterdictions_[seasonCnt][i2].push_back(i1);
+        }
+        for (vector<int> &conflicts : pb.exclusions_.seasonInterdictions_[seasonCnt]) {
+            sort(conflicts.begin(), conflicts.end());
+        }
+        for (const auto &timeStr : elt.value()) {
+            int t = readInt(timeStr) - 1;
+            assert (t >= 0 && t < pb.nbTimesteps());
+            assert (timeToSeason[t] == -1);
+            timeToSeason[t] = seasonCnt;
+        }
+        ++seasonCnt;
+    }
 
     // Resources
     for (string resourceName : pb.resourceNames_) {
