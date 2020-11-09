@@ -1,6 +1,7 @@
 // Copyright (C) 2019 Gabriel Gouvine - All Rights Reserved
 
 #include "problem.hpp"
+#include "ls_optimizer.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -85,6 +86,9 @@ int main(int argc, char **argv) {
        << pb.nbResources() << " resources "
        << pb.nbTimesteps() << " timesteps "
        << endl;
+
+  LsOptimizer opti(pb, params.solution);
+  opti.run();
 
   return 0;
 }

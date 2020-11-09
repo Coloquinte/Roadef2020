@@ -82,7 +82,7 @@ Problem Problem::read(istream &is) {
     vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
 
     // Exclusions
-    pb.exclusions_.seasonInterdictions_.resize(pb.nbSeasons(), std::vector<std::vector<int> >(pb.nbInterventions()));
+    pb.exclusions_.seasonInterdictions_.resize(pb.nbSeasons()+1, std::vector<std::vector<int> >(pb.nbInterventions()));
     for (size_t i = 0; i < pb.interventionNames_.size(); ++i) {
         string interventionName = pb.interventionNames_[i];
         auto intervention = interventionsJ[interventionName];
@@ -95,7 +95,7 @@ Problem Problem::read(istream &is) {
         pb.exclusions_.durations_.push_back(durations);
     }
     auto exclusions = js[EXCLUSIONS_STR];
-    vector<int> timeToSeason(pb.nbTimesteps(), -1);
+    pb.exclusions_.seasons_.resize(pb.nbTimesteps(), -1);
     int seasonCnt = 0;
     for (const auto &elt : js[SEASONS_STR].items()) {
         string seasonName = elt.key();
@@ -116,10 +116,16 @@ Problem Problem::read(istream &is) {
         for (const auto &timeStr : elt.value()) {
             int t = readInt(timeStr) - 1;
             assert (t >= 0 && t < pb.nbTimesteps());
-            assert (timeToSeason[t] == -1);
-            timeToSeason[t] = seasonCnt;
+            assert (pb.exclusions_.seasons_[t] == -1);
+            pb.exclusions_.seasons_[t] = seasonCnt;
         }
         ++seasonCnt;
+    }
+    for (int &season : pb.exclusions_.seasons_) {
+        // Create an additional phantom season
+        if (season == -1) {
+            season = seasonCnt;
+        }
     }
 
     // Resources
@@ -201,7 +207,8 @@ Problem Problem::read(istream &is) {
     }
 
     // Initial solution
-    pb.startTimes_.resize(pb.nbInterventions(), -1);
+    vector<int> startTimes(pb.nbInterventions(), -1);
+    pb.reset(startTimes);
 
     return pb;
 }
@@ -209,6 +216,17 @@ Problem Problem::read(istream &is) {
 Problem Problem::readFile(const string &fname) {
     ifstream f(fname);
     return read(f);
+}
+
+void Problem::writeSolution(ostream &os) {
+    for (int i = 0; i < nbInterventions(); ++i) {
+        os << interventionNames_[i] << " " << startTimes_[i] + 1 << endl;
+    }
+}
+
+void Problem::writeSolutionFile(const string &fname) {
+    ofstream f(fname);
+    return writeSolution(f);
 }
 
 void Exclusions::reset(const std::vector<int> &startTimes) {
@@ -225,6 +243,7 @@ void Exclusions::reset(const std::vector<int> &startTimes) {
 }
 
 void Exclusions::set(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < durations_.size());
     assert (startTime >= 0 && startTime < durations_[intervention].size());
     for (int t = startTime; t < startTime + durations_[intervention][startTime]; ++t) {
@@ -241,6 +260,7 @@ void Exclusions::set(int intervention, int startTime) {
 }
 
 void Exclusions::unset(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < durations_.size());
     assert (startTime >= 0 && startTime < durations_[intervention].size());
     for (int t = startTime; t < startTime + durations_[intervention][startTime]; ++t) {
@@ -305,6 +325,7 @@ void Resources::reset(const std::vector<int> &startTimes) {
 }
 
 void Resources::set(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < demands_.size());
     assert (startTime >= 0 && startTime < demands_[intervention].size());
     for (ResourceContribution c : demands_[intervention][startTime]) {
@@ -320,6 +341,7 @@ void Resources::set(int intervention, int startTime) {
 }
 
 void Resources::unset(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < demands_.size());
     assert (startTime >= 0 && startTime < demands_[intervention].size());
     for (ResourceContribution c : demands_[intervention][startTime]) {
@@ -379,12 +401,14 @@ void MeanRisk::reset(const std::vector<int> &startTimes) {
 }
 
 void MeanRisk::set(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < contribs_.size());
     assert (startTime >= 0 && startTime < contribs_[intervention].size());
     currentValue_ += contribs_[intervention][startTime];
 }
 
 void MeanRisk::unset(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < contribs_.size());
     assert (startTime >= 0 && startTime < contribs_[intervention].size());
     currentValue_ -= contribs_[intervention][startTime];
@@ -441,6 +465,7 @@ void QuantileRisk::reset(const std::vector<int> &startTimes) {
 }
 
 void QuantileRisk::set(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < contribs_.size());
     assert (startTime >= 0 && startTime < contribs_[intervention].size());
     for (const RiskContribution &c : contribs_[intervention][startTime]) {
@@ -453,6 +478,7 @@ void QuantileRisk::set(int intervention, int startTime) {
 }
 
 void QuantileRisk::unset(int intervention, int startTime) {
+    if (startTime < 0) return;
     assert (intervention >= 0 && intervention < contribs_.size());
     assert (startTime >= 0 && startTime < contribs_[intervention].size());
     for (const RiskContribution &c : contribs_[intervention][startTime]) {
@@ -633,6 +659,7 @@ void Problem::commit(const std::vector<Change> &changes) {
 }
 
 void Problem::set(int intervention, int startTime) {
+    if (startTime < 0) return;
     exclusions_.set(intervention, startTime);
     resources_.set(intervention, startTime);
     meanRisk_.set(intervention, startTime);
@@ -640,6 +667,7 @@ void Problem::set(int intervention, int startTime) {
 }
 
 void Problem::unset(int intervention, int startTime) {
+    if (startTime < 0) return;
     exclusions_.unset(intervention, startTime);
     resources_.unset(intervention, startTime);
     meanRisk_.unset(intervention, startTime);

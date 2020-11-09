@@ -191,6 +191,8 @@ class Problem {
 
     static Problem read(std::istream &);
     static Problem readFile(const std::string&);
+    void writeSolution(std::ostream &);
+    void writeSolutionFile(const std::string&);
 
     int nbResources() const { return resourceNames_.size(); }
     int nbInterventions() const { return interventionNames_.size(); }
@@ -241,4 +243,63 @@ class Problem {
     // Current solution
     std::vector<int> startTimes_;
 };
+
+struct Problem::Objective {
+    Objective()
+        : exclusion(0)
+        , resource(0.0)
+        , risk(0.0) {}
+
+    Objective(int exclusion, double resource, double risk)
+        : exclusion(exclusion)
+        , resource(resource)
+        , risk(risk) {}
+
+    int compare(const Objective &o) const {
+        if (exclusion != o.exclusion)
+            return exclusion < o.exclusion ? -1 : 1;
+        if (resource < (1.0 - resourceTol) * o.resource - resourceTol)
+            return -1;
+        if (resource > (1.0 + resourceTol) * o.resource + resourceTol)
+            return 1;
+        if (risk < (1.0 - riskTol) * o.risk - riskTol)
+            return -1;
+        if (risk > (1.0 + riskTol) * o.risk + riskTol)
+            return 1;
+        return 0;
+    }
+
+    bool operator<(const Objective &o) const {
+        return compare(o) == -1;
+    }
+
+    bool operator>(const Objective &o) const {
+        return compare(o) == 1;
+    }
+
+    bool operator==(const Objective &o) const {
+        return compare(o) == 0;
+    }
+
+    bool operator>=(const Objective &o) const {
+        return compare(o) != -1;
+    }
+
+    bool operator<=(const Objective &o) const {
+        return compare(o) != 1;
+    }
+
+    bool operator!=(const Objective &o) const {
+        return compare(o) != 0;
+    }
+
+
+    int exclusion;
+    double resource;
+    double risk;
+};
+
+inline Problem::Objective Problem::objective() const {
+    return Objective(exclusionValue(), resourceValue(), riskValue());
+}
 
