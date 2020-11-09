@@ -4,6 +4,7 @@
 #include <iosfwd>
 #include <vector>
 #include <unordered_map>
+#include <string>
 
 enum class MoveStatus {
     Degraded, Same, Improved, NotFound
@@ -31,6 +32,13 @@ struct Change {
         , oldStartTime(ot)
         , newStartTime(nt)
         {}
+};
+
+struct RoadefParams {
+    std::string instance;
+    std::string solution;
+    int verbosity;
+    size_t seed;
 };
 
 class Exclusions {

@@ -11,13 +11,6 @@
 using namespace std;
 namespace po = boost::program_options;
 
-struct RoadefParams {
-    string instance;
-    string solution;
-    int verbosity;
-    size_t seed;
-};
-
 po::options_description getOptions() {
   po::options_description desc("Options");
 
@@ -87,7 +80,7 @@ int main(int argc, char **argv) {
        << pb.nbTimesteps() << " timesteps "
        << endl;
 
-  LsOptimizer opti(pb, params.solution);
+  LsOptimizer opti(pb, params);
   opti.run();
 
   return 0;

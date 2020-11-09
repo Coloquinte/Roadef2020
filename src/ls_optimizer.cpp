@@ -4,9 +4,9 @@
 #include <iostream>
 #include <algorithm>
 
-LsOptimizer::LsOptimizer(Problem &pb, const std::string &solutionFilename) : pb(pb), solutionFilename(solutionFilename) {
+LsOptimizer::LsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(params) {
     nbMoves = 0;
-    rgen = Rgen(std::random_device()());
+    rgen = Rgen(params.seed);
     initMoves();
     initSimpleMoves();
     initPerturbations();
@@ -65,7 +65,7 @@ void LsOptimizer::save(int i) {
               << pb.exclusionValue() << " exclusions, "
               << pb.resourceValue() << " overflow, "
               << pb.riskValue() << " risk (" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")" << std::endl;
-        pb.writeSolutionFile(solutionFilename);
+        pb.writeSolutionFile(params.solution);
     }
 }
 

@@ -3,7 +3,7 @@
 
 class LsOptimizer {
   public:
-    LsOptimizer(Problem &pb, const std::string &solutionFilename);
+    LsOptimizer(Problem &pb, RoadefParams params);
 
     void run();
     void runReoptRestart(int start);
@@ -22,12 +22,11 @@ class LsOptimizer {
     void restore(int start);
 
   private:
-    const int nbStarts = 8;
+    const int nbStarts = 4;
     const int maxMovesPerRestart = 20000;
     const int maxMovesPerReopt = 20000;
 
     Problem &pb;
-    std::string solutionFilename;
     int nbMoves;
     std::vector<std::vector<int> > solutionStartTimes;
     std::vector<Problem::Objective> solutionObjs;
@@ -38,5 +37,6 @@ class LsOptimizer {
     std::vector<Move> simpleMoves;
     std::vector<Move> perturbations;
     Rgen rgen;
+    RoadefParams params;
 };
 
