@@ -14,6 +14,7 @@ SET(SOURCES
   src/problem.cpp
   src/move.cpp
   src/ls_optimizer.cpp
+  src/bs_optimizer.cpp
 )
 
 add_executable(roadef ${SOURCES})

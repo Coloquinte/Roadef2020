@@ -2,6 +2,7 @@
 
 #include "problem.hpp"
 #include "ls_optimizer.hpp"
+#include "bs_optimizer.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -80,8 +81,15 @@ int main(int argc, char **argv) {
        << pb.nbTimesteps() << " timesteps "
        << endl;
 
-  LsOptimizer opti(pb, params);
+  BsOptimizer opti(pb, params);
   opti.run();
+
+  cout << "Solution with "
+       << pb.exclusionValue() << " exclusions, "
+       << pb.resourceValue() << " overflow, "
+       << pb.riskValue() << " risk "
+       << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+       << endl;
 
   return 0;
 }

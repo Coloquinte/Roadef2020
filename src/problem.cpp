@@ -664,9 +664,12 @@ void Problem::set(int intervention, int startTime) {
     resources_.set(intervention, startTime);
     meanRisk_.set(intervention, startTime);
     quantileRisk_.set(intervention, startTime);
+    startTimes_[intervention] = startTime;
 }
 
-void Problem::unset(int intervention, int startTime) {
+void Problem::unset(int intervention) {
+    int startTime = startTimes_[intervention];
+    startTimes_[intervention] = -1;
     if (startTime < 0) return;
     exclusions_.unset(intervention, startTime);
     resources_.unset(intervention, startTime);

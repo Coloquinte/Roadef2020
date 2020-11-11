@@ -225,7 +225,7 @@ class Problem {
     MoveStatus move(const std::vector<Assignment> &moves);
     void forceMove(const std::vector<Assignment> &moves);
     void set(int intervention, int startTime);
-    void unset(int intervention, int startTime);
+    void unset(int intervention);
 
   private:
     void commit(const std::vector<Change> &changes);
