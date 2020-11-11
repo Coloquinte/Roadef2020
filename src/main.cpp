@@ -1,7 +1,6 @@
 // Copyright (C) 2019 Gabriel Gouvine - All Rights Reserved
 
 #include "problem.hpp"
-#include "ls_optimizer.hpp"
 #include "bs_optimizer.hpp"
 
 #include <iostream>

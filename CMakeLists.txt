@@ -12,8 +12,6 @@ INCLUDE_DIRECTORIES(${ROADEF2020_SOURCE_DIR}/include)
 SET(SOURCES
   src/main.cpp
   src/problem.cpp
-  src/move.cpp
-  src/ls_optimizer.cpp
   src/bs_optimizer.cpp
 )
 

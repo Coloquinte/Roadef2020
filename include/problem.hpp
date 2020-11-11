@@ -6,34 +6,6 @@
 #include <unordered_map>
 #include <string>
 
-enum class MoveStatus {
-    Degraded, Same, Improved, NotFound
-};
-
-struct Assignment {
-    int intervention;
-    int startTime;
-    Assignment(int i, int t) : intervention(i), startTime(t) {}
-
-    bool operator<(const Assignment &o) const {
-        if (intervention == o.intervention) {
-            return startTime < o.startTime;
-        }
-        return intervention < o.intervention;
-    }
-};
-
-struct Change {
-    int intervention;
-    int oldStartTime;
-    int newStartTime;
-    Change(int i, int ot, int nt)
-        : intervention(i)
-        , oldStartTime(ot)
-        , newStartTime(nt)
-        {}
-};
-
 struct RoadefParams {
     std::string instance;
     std::string solution;
@@ -52,7 +24,6 @@ class Exclusions {
     // Incremental data
     int currentValue_;
     std::vector<std::vector<int> > currentPresence_;
-    bool modificationDone_;
 
   public:
     int nbInterventions() const { return durations_.size(); }
@@ -64,16 +35,9 @@ class Exclusions {
 
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
-
     void reset(const std::vector<int> &startTimes);
-    void apply(const std::vector<Change> &changes);
-    void commit(const std::vector<Change> &changes);
-    void rollback(const std::vector<Change> &changes);
 
     friend class Problem;
-
-  private:
-    void move(int intervention, int oldStartTime, int newStartTime);
 };
 
 class Resources {
@@ -93,7 +57,6 @@ class Resources {
     // Incremental data
     double currentValue_;
     std::vector<std::vector<double> > currentUsage_;
-    bool modificationDone_;
 
   public:
     int nbInterventions() const { return demands_.size(); }
@@ -105,16 +68,9 @@ class Resources {
 
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
-
     void reset(const std::vector<int> &startTimes);
-    void apply(const std::vector<Change> &changes);
-    void commit(const std::vector<Change> &changes);
-    void rollback(const std::vector<Change> &changes);
 
     friend class Problem;
-
-  private:
-    void move(int intervention, int oldStartTime, int newStartTime);
 };
 
 class MeanRisk {
@@ -124,7 +80,6 @@ class MeanRisk {
 
     // Incremental data
     double currentValue_;
-    bool modificationDone_;
 
   public:
     int nbInterventions() const { return contribs_.size(); }
@@ -134,16 +89,9 @@ class MeanRisk {
 
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
-
     void reset(const std::vector<int> &startTimes);
-    void apply(const std::vector<Change> &changes);
-    void commit(const std::vector<Change> &changes);
-    void rollback(const std::vector<Change> &changes);
 
     friend class Problem;
-
-  private:
-    void move(int intervention, int oldStartTime, int newStartTime);
 };
 
 class QuantileRisk {
@@ -163,7 +111,6 @@ class QuantileRisk {
     double currentValue_;
     std::vector<double> currentExcesses_;
     std::vector<std::vector<double> > currentRisks_;
-    bool modificationDone_;
 
   public:
     int nbInterventions() const { return contribs_.size(); }
@@ -175,18 +122,13 @@ class QuantileRisk {
 
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
-
     void reset(const std::vector<int> &startTimes);
-    void apply(const std::vector<Change> &changes);
-    void commit(const std::vector<Change> &changes);
-    void rollback(const std::vector<Change> &changes);
 
     friend class Problem;
 
   private:
     void updateExcess(int time);
     void updateExcesses(int intervention, int startTime);
-    void move(int intervention, int oldStartTime, int newStartTime);
 };
 
 
@@ -222,15 +164,8 @@ class Problem {
 
     void reset(const std::vector<int> &startTimes);
     void reset();
-    MoveStatus move(const std::vector<Assignment> &moves);
-    void forceMove(const std::vector<Assignment> &moves);
     void set(int intervention, int startTime);
     void unset(int intervention);
-
-  private:
-    void commit(const std::vector<Change> &changes);
-    void rollback(const std::vector<Change> &changes);
-    std::vector<Change> movesToChanges(const std::vector<Assignment> &moves) const;
 
   private:
     // Names

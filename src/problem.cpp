@@ -239,7 +239,6 @@ void Exclusions::reset(const std::vector<int> &startTimes) {
             set(i, startTimes[i]);
         }
     }
-    modificationDone_ = false;
 }
 
 void Exclusions::set(int intervention, int startTime) {
@@ -278,39 +277,6 @@ void Exclusions::unset(int intervention, int startTime) {
     }
 }
 
-void Exclusions::move(int intervention, int oldStartTime, int newStartTime) {
-    unset(intervention, oldStartTime);
-    set(intervention, newStartTime);
-}
-
-void Exclusions::apply(const std::vector<Change> &changes) {
-    assert(!modificationDone_);
-    modificationDone_ = true;
-    for (Change c : changes) {
-        move(c.intervention, c.oldStartTime, c.newStartTime);
-    }
-}
-
-void Exclusions::commit(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        modificationDone_ = false;
-    }
-    else {
-        for (Change c : changes) {
-            move(c.intervention, c.oldStartTime, c.newStartTime);
-        }
-    }
-}
-
-void Exclusions::rollback(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        for (Change c : changes) {
-            move(c.intervention, c.newStartTime, c.oldStartTime);
-        }
-        modificationDone_ = false;
-    }
-}
-
 void Resources::reset(const std::vector<int> &startTimes) {
     assert (startTimes.size() == nbInterventions());
     currentValue_ = 0.0;
@@ -321,7 +287,6 @@ void Resources::reset(const std::vector<int> &startTimes) {
             set(i, startTimes[i]);
         }
     }
-    modificationDone_ = false;
 }
 
 void Resources::set(int intervention, int startTime) {
@@ -356,39 +321,6 @@ void Resources::unset(int intervention, int startTime) {
     }
 }
 
-void Resources::move(int intervention, int oldStartTime, int newStartTime) {
-    unset(intervention, oldStartTime);
-    set(intervention, newStartTime);
-}
-
-void Resources::apply(const std::vector<Change> &changes) {
-    assert(!modificationDone_);
-    modificationDone_ = true;
-    for (Change c : changes) {
-        move(c.intervention, c.oldStartTime, c.newStartTime);
-    }
-}
-
-void Resources::commit(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        modificationDone_ = false;
-    }
-    else {
-        for (Change c : changes) {
-            move(c.intervention, c.oldStartTime, c.newStartTime);
-        }
-    }
-}
-
-void Resources::rollback(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        for (Change c : changes) {
-            move(c.intervention, c.newStartTime, c.oldStartTime);
-        }
-        modificationDone_ = false;
-    }
-}
-
 void MeanRisk::reset(const std::vector<int> &startTimes) {
     assert (startTimes.size() == nbInterventions());
     currentValue_ = 0.0;
@@ -397,7 +329,6 @@ void MeanRisk::reset(const std::vector<int> &startTimes) {
             set(i, startTimes[i]);
         }
     }
-    modificationDone_ = false;
 }
 
 void MeanRisk::set(int intervention, int startTime) {
@@ -414,39 +345,6 @@ void MeanRisk::unset(int intervention, int startTime) {
     currentValue_ -= contribs_[intervention][startTime];
 }
 
-void MeanRisk::move(int intervention, int oldStartTime, int newStartTime) {
-    unset(intervention, oldStartTime);
-    set(intervention, newStartTime);
-}
-
-void MeanRisk::apply(const std::vector<Change> &changes) {
-    assert(!modificationDone_);
-    modificationDone_ = true;
-    for (Change c : changes) {
-        move(c.intervention, c.oldStartTime, c.newStartTime);
-    }
-}
-
-void MeanRisk::commit(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        modificationDone_ = false;
-    }
-    else {
-        for (Change c : changes) {
-            move(c.intervention, c.oldStartTime, c.newStartTime);
-        }
-    }
-}
-
-void MeanRisk::rollback(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        for (Change c : changes) {
-            move(c.intervention, c.newStartTime, c.oldStartTime);
-        }
-        modificationDone_ = false;
-    }
-}
-
 void QuantileRisk::reset(const std::vector<int> &startTimes) {
     assert (startTimes.size() == nbInterventions());
     currentValue_ = 0.0;
@@ -461,7 +359,6 @@ void QuantileRisk::reset(const std::vector<int> &startTimes) {
             set(i, startTimes[i]);
         }
     }
-    modificationDone_ = false;
 }
 
 void QuantileRisk::set(int intervention, int startTime) {
@@ -514,39 +411,6 @@ void QuantileRisk::updateExcesses(int intervention, int startTime) {
     }
 }
 
-void QuantileRisk::move(int intervention, int oldStartTime, int newStartTime) {
-    unset(intervention, oldStartTime);
-    set(intervention, newStartTime);
-}
-
-void QuantileRisk::apply(const std::vector<Change> &changes) {
-    assert(!modificationDone_);
-    modificationDone_ = true;
-    for (Change c : changes) {
-        move(c.intervention, c.oldStartTime, c.newStartTime);
-    }
-}
-
-void QuantileRisk::commit(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        modificationDone_ = false;
-    }
-    else {
-        for (Change c : changes) {
-            move(c.intervention, c.oldStartTime, c.newStartTime);
-        }
-    }
-}
-
-void QuantileRisk::rollback(const std::vector<Change> &changes) {
-    if (modificationDone_) {
-        for (Change c : changes) {
-            move(c.intervention, c.newStartTime, c.oldStartTime);
-        }
-        modificationDone_ = false;
-    }
-}
-
 void Problem::reset(const std::vector<int> &startTimes) {
     startTimes_ = startTimes;
     exclusions_.reset(startTimes);
@@ -558,104 +422,6 @@ void Problem::reset(const std::vector<int> &startTimes) {
 void Problem::reset() {
     std::vector<int> startTimes(nbInterventions(), -1);
     reset(startTimes);
-}
-
-std::vector<Change> Problem::movesToChanges(const std::vector<Assignment> &moves) const {
-    assert (startTimes_.size() == nbInterventions());
-    for (int i = 0; i+1 < moves.size(); ++i) {
-        assert (moves[i].intervention >= 0);
-        assert (moves[i].intervention < nbInterventions());
-        assert (moves[i].startTime >= 0);
-        assert (moves[i].startTime < maxStartTime(moves[i].intervention));
-        for (int j = i+1; j < moves.size(); ++j) {
-            assert(moves[i].intervention != moves[j].intervention);
-        }
-    }
-
-    std::vector<Change> changes;
-    for (Assignment m : moves) {
-        assert (m.intervention < nbInterventions());
-        int oldStartTime = startTimes_[m.intervention];
-        int newStartTime = m.startTime;
-        if (oldStartTime == newStartTime) continue;
-        changes.emplace_back(m.intervention, oldStartTime, newStartTime);
-    }
-    return changes;
-}
-
-MoveStatus Problem::move(const std::vector<Assignment> &moves) {
-    std::vector<Change> changes = movesToChanges(moves);
-    if (changes.empty()) return MoveStatus::Same;
-
-    // Test exclusions
-    int oldExclusions = exclusions_.value();
-    exclusions_.apply(changes);
-    int newExclusions = exclusions_.value();
-    if (newExclusions < oldExclusions) {
-        commit(changes);
-        return MoveStatus::Improved;
-    }
-    if (newExclusions > oldExclusions) {
-        rollback(changes);
-        return MoveStatus::Degraded;
-    }
-
-    // Test resources
-    double oldResources = resources_.value();
-    resources_.apply(changes);
-    double newResources = resources_.value();
-    if (newResources < (1.0 - resourceTol) * oldResources - resourceTol) {
-        commit(changes);
-        return MoveStatus::Improved;
-    }
-    if (newResources > (1.0 + resourceTol) * oldResources + resourceTol) {
-        rollback(changes);
-        return MoveStatus::Degraded;
-    }
-
-    // Test mean risk + quantile risk
-    double oldMeanRisk = meanRisk_.value();
-    double oldQuantileRisk = quantileRisk_.value();
-    double oldRisk = oldMeanRisk + oldQuantileRisk;
-    meanRisk_.apply(changes);
-    double newMeanRisk = meanRisk_.value();
-    quantileRisk_.apply(changes);
-    double newQuantileRisk = quantileRisk_.value();
-    double newRisk = newMeanRisk + newQuantileRisk;
-    if (newRisk < (1.0 - riskTol) * oldRisk - riskTol) {
-        commit(changes);
-        return MoveStatus::Improved;
-    }
-    if (newRisk > (1.0 + riskTol) * oldRisk + riskTol) {
-        rollback(changes);
-        return MoveStatus::Degraded;
-    }
-    commit(changes);
-    return MoveStatus::Same;
-}
-
-void Problem::forceMove(const std::vector<Assignment> &moves) {
-    std::vector<Change> changes = movesToChanges(moves);
-    if (changes.empty()) return;
-    commit(changes);
-}
-
-void Problem::rollback(const std::vector<Change> &changes) {
-    exclusions_.rollback(changes);
-    resources_.rollback(changes);
-    meanRisk_.rollback(changes);
-    quantileRisk_.rollback(changes);
-}
-
-void Problem::commit(const std::vector<Change> &changes) {
-    exclusions_.commit(changes);
-    resources_.commit(changes);
-    meanRisk_.commit(changes);
-    quantileRisk_.commit(changes);
-    for (Change c : changes) {
-        assert (startTime(c.intervention) == c.oldStartTime);
-        startTimes_[c.intervention] = c.newStartTime;
-    }
 }
 
 void Problem::set(int intervention, int startTime) {
