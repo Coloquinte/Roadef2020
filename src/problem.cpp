@@ -425,7 +425,8 @@ void Problem::reset() {
 }
 
 void Problem::set(int intervention, int startTime) {
-    if (startTime < 0) return;
+    if (startTime < 0) return; // Nothing to set
+    assert (startTimes_[intervention] == -1);
     exclusions_.set(intervention, startTime);
     resources_.set(intervention, startTime);
     meanRisk_.set(intervention, startTime);
@@ -435,13 +436,24 @@ void Problem::set(int intervention, int startTime) {
 
 void Problem::unset(int intervention) {
     int startTime = startTimes_[intervention];
-    startTimes_[intervention] = -1;
-    if (startTime < 0) return;
+    if (startTime < 0) return; // Already unset
     exclusions_.unset(intervention, startTime);
     resources_.unset(intervention, startTime);
     meanRisk_.unset(intervention, startTime);
     quantileRisk_.unset(intervention, startTime);
+    startTimes_[intervention] = -1;
 }
+
+void Problem::set(const std::vector<int> &startTimes) {
+    // Incremental version of reset
+    for (int i = 0; i < nbInterventions(); ++i) {
+        if (startTimes[i] != startTime(i)) {
+            unset(i);
+            set(i, startTimes[i]);
+        }
+    }
+}
+
 
 
 

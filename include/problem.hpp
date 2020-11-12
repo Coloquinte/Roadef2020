@@ -166,6 +166,13 @@ class Problem {
     void reset();
     void set(int intervention, int startTime);
     void unset(int intervention);
+    void set(const std::vector<int> &startTimes);
+
+    // Useful stats by intervention
+    // TODO
+    std::vector<double> averageMeanRisk() const;
+    std::vector<double> averageQuantileRisk() const;
+    std::vector<double> averageDemand() const;
 
   private:
     // Names
