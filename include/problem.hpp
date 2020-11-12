@@ -205,16 +205,20 @@ struct Problem::Objective {
         , resource(resource)
         , risk(risk) {}
 
+    static bool compareWithTol(double a, double b, double tol) {
+        return b - a > tol + (std::abs(a) + std::abs(b)) * tol;
+    }
+
     int compare(const Objective &o) const {
         if (exclusion != o.exclusion)
             return exclusion < o.exclusion ? -1 : 1;
-        if (resource < (1.0 - resourceTol) * o.resource - resourceTol)
+        if (compareWithTol(resource, o.resource, resourceTol))
             return -1;
-        if (resource > (1.0 + resourceTol) * o.resource + resourceTol)
+        if (compareWithTol(o.resource, resource, resourceTol))
             return 1;
-        if (risk < (1.0 - riskTol) * o.risk - riskTol)
+        if (compareWithTol(risk, o.risk, riskTol))
             return -1;
-        if (risk > (1.0 + riskTol) * o.risk + riskTol)
+        if (compareWithTol(o.risk, risk, riskTol))
             return 1;
         return 0;
     }

@@ -11,9 +11,12 @@ class BsOptimizer {
 
     void run();
     void runAttempt();
-    void makeDecision(int intervention);
-    void recordSolution();
+
     std::vector<int> getInterventionOrder();
+    void initBeam();
+    void expandBeam(int intervention);
+    void recordSolution();
+
     void analyze();
 
   private:
@@ -21,9 +24,13 @@ class BsOptimizer {
 
     std::vector<int> bestStartTimes;
     Problem::Objective bestObj;
+
+    std::vector<std::vector<int> > beam;
+
     std::vector<std::vector<int> > allSolutions;
 
     Rgen rgen;
     RoadefParams params;
+    int beamWidth;
 };
 
