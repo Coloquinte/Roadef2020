@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
+#include <cassert>
 
 using namespace std;
 
@@ -13,17 +14,18 @@ BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(para
 }
 
 void BsOptimizer::run() {
-    for (int i = 0; i < 200; ++i) {
-        runAttempt();
+    resetBeam();
+    runBeam();
+    for (int i = 0; i < 10000; ++i) {
+        resetBeamPartial(20);
+        runBeam();
     }
+    assert (solutionFound());
     pb.reset(bestStartTimes);
-    //analyze();
 }
 
-void BsOptimizer::runAttempt() {
-    pb.reset();
+void BsOptimizer::runBeam() {
     vector<int> interventions = getInterventionOrder();
-    initBeam();
     for (int i : interventions) {
         expandBeam(i);
     }
@@ -32,8 +34,10 @@ void BsOptimizer::runAttempt() {
 
 void BsOptimizer::recordSolution() {
     for (vector<int> startTimes : beam) {
+        for (int t : startTimes) {
+            assert (t >= 0 && t < pb.nbTimesteps());
+        }
         pb.reset(startTimes);
-        allSolutions.push_back(startTimes);
         if (pb.objective() < bestObj || bestStartTimes.empty()) {
             pb.writeSolutionFile(params.solution);
             bestObj = pb.objective();
@@ -58,16 +62,32 @@ struct NextBeamElement {
     bool operator<(const NextBeamElement &o) const { return obj < o.obj; }
 };
 
-void BsOptimizer::initBeam() {
+void BsOptimizer::resetBeam() {
+    pb.reset();
     beam.clear();
-    for (int i = 0; i < beamWidth; ++i) {
-        beam.push_back(vector<int>(pb.nbInterventions(), -1));
+    beam.push_back(vector<int>(pb.nbInterventions(), -1));
+}
+
+void BsOptimizer::resetBeamPartial(int backtrackSize) {
+    assert (solutionFound());
+    pb.reset();
+    beam.clear();
+    vector<int> startTimes = bestStartTimes;
+    for (int i = 0; i < backtrackSize; ++i) {
+        int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
+        startTimes[intervention] = -1;
     }
+    beam.push_back(startTimes);
+}
+
+bool BsOptimizer::solutionFound() const {
+    return !bestStartTimes.empty();
 }
 
 void BsOptimizer::expandBeam(int intervention) {
     vector<NextBeamElement> beamTrials;
-    for (int i = 0; i < beamWidth; ++i) {
+    for (int i = 0; i < beam.size(); ++i) {
+        assert (beam[i][intervention] == -1);
         pb.set(beam[i]);
         for (int t = 0; t < pb.maxStartTime(intervention); ++t) {
             pb.set(intervention, t);
@@ -87,10 +107,19 @@ void BsOptimizer::expandBeam(int intervention) {
 }
 
 vector<int> BsOptimizer::getInterventionOrder() {
-    vector<double> averageDemand = pb.measureAverageDemand();
-    vector<pair<double, int> > costs;
+    assert (beam.size() == 1);
+    // Only keep interventions that are not set yet
+    vector<int> interventions;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
-        costs.emplace_back(- averageDemand[i], i);
+        if (beam[0][i] == -1) {
+            interventions.push_back(i);
+        }
+    }
+    // Use a heuristic measure to decide the order
+    vector<double> ranking = pb.measureSpanMeanRisk();
+    vector<pair<double, int> > costs;
+    for (int i : interventions) {
+        costs.emplace_back(-ranking[i], i);
     }
     sort(costs.begin(), costs.end());
     vector<int> order;
@@ -100,24 +129,3 @@ vector<int> BsOptimizer::getInterventionOrder() {
     return order;
 }
 
-void BsOptimizer::analyze() {
-    vector<int> nbDifferent(pb.nbInterventions());
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        unordered_set<int> times;
-        for (int s = 0; s < allSolutions.size(); ++s) {
-            times.insert(allSolutions[s][i]);
-        }
-        nbDifferent[i] = times.size();
-    }
-    int maxDiff = *max_element(nbDifferent.begin(), nbDifferent.end());
-    int minDiff = *min_element(nbDifferent.begin(), nbDifferent.end());
-    double avg = 0;
-    for (int n : nbDifferent) {
-        avg += n / (double) pb.nbInterventions();
-    }
-    cout << "Out of " << pb.nbTimesteps() << " timesteps, "
-         << "average " << avg << " different times "
-         << "(" << minDiff << "-" << maxDiff << ")"
-         << " after " << allSolutions.size() << " trials"
-         << endl;
-}

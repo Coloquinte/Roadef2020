@@ -137,7 +137,6 @@ class Problem {
     struct Objective;
 
     static constexpr double resourceTol = 1.0e-6;
-    static constexpr double riskTol = 1.0e-8;
 
     static Problem read(std::istream &);
     static Problem readFile(const std::string&);
@@ -151,7 +150,7 @@ class Problem {
     int maxStartTime(int intervention) const { return maxStartTimes_[intervention]; }
 
     int exclusionValue() const { return exclusions_.value(); }
-    double resourceValue() const { return std::abs(resources_.value()) > resourceTol ? resources_.value() : 0.0; }
+    double resourceValue() const { return resources_.value() > resourceTol ? resources_.value() : 0.0; }
     double riskValue() const { return meanRisk_.value() + quantileRisk_.value(); }
     double meanRiskValue() const { return meanRisk_.value(); }
     double quantileRiskValue() const { return quantileRisk_.value(); }
@@ -210,14 +209,10 @@ struct Problem::Objective {
     int compare(const Objective &o) const {
         if (exclusion != o.exclusion)
             return exclusion < o.exclusion ? -1 : 1;
-        if (compareWithTol(resource, o.resource, resourceTol))
-            return -1;
-        if (compareWithTol(o.resource, resource, resourceTol))
-            return 1;
-        if (compareWithTol(risk, o.risk, riskTol))
-            return -1;
-        if (compareWithTol(o.risk, risk, riskTol))
-            return 1;
+        if (resource != o.resource)
+            return resource < o.resource ? -1 : 1;
+        if (risk != o.risk)
+            return risk < o.risk ? -1 : 1;
         return 0;
     }
 

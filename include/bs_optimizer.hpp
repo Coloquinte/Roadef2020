@@ -10,14 +10,18 @@ class BsOptimizer {
     BsOptimizer(Problem &pb, RoadefParams params);
 
     void run();
-    void runAttempt();
 
+    // Beam initialization
+    void resetBeam();
+    void resetBeamPartial(int backtrackSize);
+
+    // Beam exploration
+    void runBeam();
     std::vector<int> getInterventionOrder();
-    void initBeam();
     void expandBeam(int intervention);
     void recordSolution();
 
-    void analyze();
+    bool solutionFound() const;
 
   private:
     Problem &pb;
@@ -26,8 +30,6 @@ class BsOptimizer {
     Problem::Objective bestObj;
 
     std::vector<std::vector<int> > beam;
-
-    std::vector<std::vector<int> > allSolutions;
 
     Rgen rgen;
     RoadefParams params;

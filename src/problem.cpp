@@ -412,6 +412,7 @@ void QuantileRisk::updateExcesses(int intervention, int startTime) {
 }
 
 void Problem::reset(const std::vector<int> &startTimes) {
+    assert (startTimes.size() == nbInterventions());
     startTimes_ = startTimes;
     exclusions_.reset(startTimes);
     resources_.reset(startTimes);
@@ -446,6 +447,7 @@ void Problem::unset(int intervention) {
 
 void Problem::set(const std::vector<int> &startTimes) {
     // Incremental version of reset
+    assert (startTimes.size() == nbInterventions());
     for (int i = 0; i < nbInterventions(); ++i) {
         if (startTimes[i] != startTime(i)) {
             unset(i);
