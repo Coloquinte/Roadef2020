@@ -87,11 +87,16 @@ void BsOptimizer::expandBeam(int intervention) {
 }
 
 vector<int> BsOptimizer::getInterventionOrder() {
-    vector<int> order;
+    vector<double> averageDemand = pb.measureAverageDemand();
+    vector<pair<double, int> > costs;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
-        order.push_back(i);
+        costs.emplace_back(- averageDemand[i], i);
     }
-    shuffle(order.begin(), order.end(), rgen);
+    sort(costs.begin(), costs.end());
+    vector<int> order;
+    for (auto p : costs) {
+        order.push_back(p.second);
+    }
     return order;
 }
 

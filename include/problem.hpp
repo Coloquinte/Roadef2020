@@ -168,11 +168,9 @@ class Problem {
     void unset(int intervention);
     void set(const std::vector<int> &startTimes);
 
-    // Useful stats by intervention
-    // TODO
-    std::vector<double> averageMeanRisk() const;
-    std::vector<double> averageQuantileRisk() const;
-    std::vector<double> averageDemand() const;
+    // Heuristic measures to take decisions
+    std::vector<double> measureSpanMeanRisk() const;
+    std::vector<double> measureAverageDemand() const;
 
   private:
     // Names
