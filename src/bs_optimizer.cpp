@@ -10,14 +10,14 @@ using namespace std;
 
 BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(params) {
     rgen = Rgen(params.seed);
-    beamWidth = 100;
+    beamWidth = 10;
 }
 
 void BsOptimizer::run() {
     resetBeam();
     runBeam();
-    for (int i = 0; i < 10000; ++i) {
-        resetBeamPartial(20);
+    for (int i = 0; i < 1000000; ++i) {
+        resetBeamPartial(50);
         runBeam();
     }
     assert (solutionFound());

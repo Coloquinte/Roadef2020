@@ -32,8 +32,8 @@ po::options_description getOptions() {
 }
 
 po::variables_map parseArguments(int argc, char **argv) {
-  cout << fixed << setprecision(1);
-  cerr << fixed << setprecision(1);
+  cout << fixed << setprecision(3);
+  cerr << fixed << setprecision(3);
 
   po::options_description options = getOptions();
   po::positional_options_description pos;
