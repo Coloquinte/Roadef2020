@@ -125,15 +125,18 @@ void BsOptimizer::expandBeam(int intervention) {
         assert (beam[i][intervention] == -1);
         pb.set(beam[i]);
         for (int t = 0; t < pb.maxStartTime(intervention); ++t) {
-            pb.set(intervention, t);
-            beamTrials.emplace_back(i, t, pb.objective());
-            pb.unset(intervention);
+            // Insert in the sorted vector
+            Problem::Objective threshold = beamTrials.empty() ? Problem::Objective() : beamTrials.back().obj;
+            NextBeamElement elt (i, t, pb.objectiveIf(intervention, t, threshold));
+            auto it = std::upper_bound(beamTrials.begin(), beamTrials.end(), elt);
+            beamTrials.insert(it, elt);
+            if (beamTrials.size() > beamWidth) {
+                beamTrials.pop_back();
+            }
         }
     }
-    sort(beamTrials.begin(), beamTrials.end());
     vector<vector<int> > newBeam;
-    for (int i = 0; i < beamWidth && i < beamTrials.size(); ++i) {
-        NextBeamElement elt = beamTrials[i];
+    for (NextBeamElement elt : beamTrials) {
         vector<int> node = beam[elt.node];
         node[intervention] = elt.time;
         newBeam.push_back(node);

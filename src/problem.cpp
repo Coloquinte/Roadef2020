@@ -456,6 +456,38 @@ void Problem::set(const std::vector<int> &startTimes) {
     }
 }
 
+Problem::Objective Problem::objectiveIf(int intervention, int startTime, Objective threshold) {
+    assert (startTimes_[intervention] == -1);
+    meanRisk_.set(intervention, startTime);
+    if (objective() >= threshold) {
+        meanRisk_.unset(intervention, startTime);
+        return Objective();
+    }
+    resources_.set(intervention, startTime);
+    if (objective() >= threshold) {
+        meanRisk_.unset(intervention, startTime);
+        resources_.unset(intervention, startTime);
+        return Objective();
+    }
+    exclusions_.set(intervention, startTime);
+    if (objective() >= threshold) {
+        meanRisk_.unset(intervention, startTime);
+        resources_.unset(intervention, startTime);
+        exclusions_.unset(intervention, startTime);
+        return Objective();
+    }
+    quantileRisk_.set(intervention, startTime);
+
+    Objective ret = objective();
+
+    meanRisk_.unset(intervention, startTime);
+    resources_.unset(intervention, startTime);
+    exclusions_.unset(intervention, startTime);
+    quantileRisk_.unset(intervention, startTime);
+
+    return ret;
+}
+
 vector<double> Problem::measureSpanMeanRisk() const {
     vector<double> ret;
     for (int i = 0; i < nbInterventions(); ++i) {
