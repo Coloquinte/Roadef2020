@@ -12,6 +12,7 @@ struct RoadefParams {
     std::string solution;
     int verbosity;
     size_t seed;
+    double time_limit;
 };
 
 class Exclusions {
