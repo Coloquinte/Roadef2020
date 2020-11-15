@@ -6,13 +6,16 @@
 #include <unordered_map>
 #include <string>
 #include <limits>
+#include <chrono>
 
 struct RoadefParams {
     std::string instance;
     std::string solution;
     int verbosity;
     size_t seed;
-    double time_limit;
+    double timeLimit;
+    std::chrono::steady_clock::time_point startTime;
+    std::chrono::steady_clock::time_point endTime;
 };
 
 class Exclusions {

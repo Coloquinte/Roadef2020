@@ -23,7 +23,7 @@ po::options_description getOptions() {
   desc.add_options()("seed,s", po::value<size_t>()->default_value(0),
                      "Random seed");
 
-  desc.add_options()("time-limit,t", po::value<double>()->default_value(numeric_limits<double>::infinity()),
+  desc.add_options()("time-limit,t", po::value<double>()->default_value(1.0e8),
                      "Time limit");
 
   desc.add_options()("name", "Print the team's name (J3)");
@@ -71,13 +71,18 @@ po::variables_map parseArguments(int argc, char **argv) {
 }
 
 RoadefParams readParams(const po::variables_map &vm) {
-  return RoadefParams {
-    .instance = vm["instance"].as<string>(),
-    .solution = vm["solution"].as<string>(),
-    .verbosity = vm["verbosity"].as<int>(),
-    .seed = vm["seed"].as<size_t>(),
-    .time_limit = vm["time-limit"].as<double>(),
-  };
+    double timeLimit = vm["time-limit"].as<double>();
+    chrono::steady_clock::time_point startTime = chrono::steady_clock::now();
+    chrono::steady_clock::time_point endTime = startTime + chrono::duration_cast<chrono::steady_clock::duration>(chrono::duration<double>(0.99 * timeLimit));
+    return RoadefParams {
+      .instance = vm["instance"].as<string>(),
+      .solution = vm["solution"].as<string>(),
+      .verbosity = vm["verbosity"].as<int>(),
+      .seed = vm["seed"].as<size_t>(),
+      .timeLimit = timeLimit,
+      .startTime = startTime,
+      .endTime = endTime
+    };
 }
 
 int main(int argc, char **argv) {
@@ -87,14 +92,16 @@ int main(int argc, char **argv) {
   Problem pb = Problem::readFile(params.instance);
 
   if (params.verbosity >= 1) {
+    chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
     cout << "Problem with "
          << pb.nbInterventions() << " interventions "
          << pb.nbResources() << " resources "
          << pb.nbTimesteps() << " timesteps "
+         << "read after " << elapsed.count() << "s "
          << endl;
     cout << "Random seed is " << params.seed << endl;
-    if (isfinite(params.time_limit)) {
-        cout << "Time limit is " << params.time_limit << endl;
+    if (params.timeLimit < 1e8) {
+        cout << "Time limit is " << params.timeLimit << endl;
     }
     else {
         cout << "No time limit" << endl;

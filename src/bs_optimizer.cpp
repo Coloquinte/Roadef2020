@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <cassert>
+#include <chrono>
 
 using namespace std;
 
@@ -16,7 +17,10 @@ BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(para
 void BsOptimizer::run() {
     resetBeam();
     runBeam();
-    for (int i = 0; i < 1000000; ++i) {
+    while (true) {
+        if (chrono::steady_clock::now() >= params.endTime) {
+            break;
+        }
         resetBeamPartial(50);
         runBeam();
     }
@@ -76,11 +80,13 @@ void BsOptimizer::recordSolution() {
             bestObj = pb.objective();
             bestStartTimes = startTimes;
             if (params.verbosity >= 2) {
+                chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
                 cout << "New solution with "
                      << pb.exclusionValue() << " exclusions, "
                      << pb.resourceValue() << " overflow, "
                      << pb.riskValue() << " risk "
                      << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+                     << ", elapsed " << elapsed.count() << "s"
                      << endl;
             }
         }
