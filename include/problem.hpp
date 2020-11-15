@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <limits>
 
 struct RoadefParams {
     std::string instance;
@@ -137,6 +138,7 @@ class Problem {
     struct Objective;
 
     static constexpr double resourceTol = 1.0e-6;
+    static constexpr double riskTol = 1.0e-8;
 
     static Problem read(std::istream &);
     static Problem readFile(const std::string&);
@@ -166,6 +168,7 @@ class Problem {
     void set(int intervention, int startTime);
     void unset(int intervention);
     void set(const std::vector<int> &startTimes);
+    Objective objectiveIf(int intervention, int startTime, Objective threshold);
 
     // Heuristic measures to take decisions
     std::vector<double> measureSpanMeanRisk() const;
@@ -193,18 +196,14 @@ class Problem {
 
 struct Problem::Objective {
     Objective()
-        : exclusion(0)
-        , resource(0.0)
-        , risk(0.0) {}
+        : exclusion(std::numeric_limits<int>::max())
+        , resource(std::numeric_limits<double>::infinity())
+        , risk(std::numeric_limits<double>::infinity()) {}
 
     Objective(int exclusion, double resource, double risk)
         : exclusion(exclusion)
         , resource(resource)
         , risk(risk) {}
-
-    static bool compareWithTol(double a, double b, double tol) {
-        return b - a > tol + (std::abs(a) + std::abs(b)) * tol;
-    }
 
     int compare(const Objective &o) const {
         if (exclusion != o.exclusion)
@@ -214,6 +213,14 @@ struct Problem::Objective {
         if (risk != o.risk)
             return risk < o.risk ? -1 : 1;
         return 0;
+    }
+
+    bool betterThan(const Objective &o) const {
+        if (exclusion != o.exclusion)
+            return exclusion < o.exclusion;
+        if (resource != o.resource)
+            return resource < o.resource;
+        return risk + riskTol < o.risk;
     }
 
     bool operator<(const Objective &o) const {

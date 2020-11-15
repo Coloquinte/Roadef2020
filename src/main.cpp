@@ -20,8 +20,8 @@ po::options_description getOptions() {
   desc.add_options()("solution", po::value<string>()->required(),
                      "Solution file name (.txt)");
 
-  desc.add_options()("verbosity,v", po::value<int>()->default_value(1),
-                     "Verbosity level");
+  desc.add_options()("verbosity,v", po::value<int>()->default_value(2),
+                     "Verbosity level\n    1 -> basic stats\n    2 -> new solutions\n    3 -> search process");
 
   desc.add_options()("seed,s", po::value<size_t>()->default_value(0),
                      "Random seed");
@@ -74,21 +74,25 @@ int main(int argc, char **argv) {
   RoadefParams params = readParams(vm);
   Problem pb = Problem::readFile(params.instance);
 
-  cout << "Problem with "
-       << pb.nbInterventions() << " interventions "
-       << pb.nbResources() << " resources "
-       << pb.nbTimesteps() << " timesteps "
-       << endl;
+  if (params.verbosity >= 1) {
+    cout << "Problem with "
+         << pb.nbInterventions() << " interventions "
+         << pb.nbResources() << " resources "
+         << pb.nbTimesteps() << " timesteps "
+         << endl;
+  }
 
   BsOptimizer opti(pb, params);
   opti.run();
 
-  cout << "Solution with "
-       << pb.exclusionValue() << " exclusions, "
-       << pb.resourceValue() << " overflow, "
-       << pb.riskValue() << " risk "
-       << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
-       << endl;
+  if (params.verbosity >= 1) {
+    cout << "Solution with "
+         << pb.exclusionValue() << " exclusions, "
+         << pb.resourceValue() << " overflow, "
+         << pb.riskValue() << " risk "
+         << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+         << endl;
+  }
 
   return 0;
 }

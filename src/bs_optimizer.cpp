@@ -25,29 +25,64 @@ void BsOptimizer::run() {
 }
 
 void BsOptimizer::runBeam() {
+    logBeamStart();
     vector<int> interventions = getInterventionOrder();
     for (int i : interventions) {
         expandBeam(i);
     }
+    logBeamEnd();
     recordSolution();
 }
 
+void BsOptimizer::logBeamStart() const {
+    assert (!beam.empty());
+    if (params.verbosity < 3) return;
+    int cnt = 0;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        if (beam[0][i] == -1) {
+            ++cnt;
+        }
+    }
+    cout << "Beam run started with " << cnt << " interventions to assign" << endl;
+}
+
+void BsOptimizer::logBeamEnd() const {
+    assert (!beam.empty());
+    if (params.verbosity < 3) return;
+    cout << "Beam run done" << endl;
+    vector<int> differences;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        vector<int> values;
+        for (int b = 0; b < beam.size(); ++b) {
+            values.push_back(beam[b][i]);
+        }
+        sort(values.begin(), values.end());
+        values.erase(unique(values.begin(), values.end()), values.end());
+        if (values.size() >= 2) {
+            cout << "\tIntervention " << i << ": \t" << values.size() << " different times" << endl;
+        }
+    }
+}
+
 void BsOptimizer::recordSolution() {
+    assert (!beam.empty());
     for (vector<int> startTimes : beam) {
         for (int t : startTimes) {
             assert (t >= 0 && t < pb.nbTimesteps());
         }
         pb.reset(startTimes);
-        if (pb.objective() < bestObj || bestStartTimes.empty()) {
+        if (pb.objective().betterThan(bestObj) || bestStartTimes.empty()) {
             pb.writeSolutionFile(params.solution);
             bestObj = pb.objective();
             bestStartTimes = startTimes;
-            cout << "New solution with "
-                 << pb.exclusionValue() << " exclusions, "
-                 << pb.resourceValue() << " overflow, "
-                 << pb.riskValue() << " risk "
-                 << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
-                 << endl;
+            if (params.verbosity >= 2) {
+                cout << "New solution with "
+                     << pb.exclusionValue() << " exclusions, "
+                     << pb.resourceValue() << " overflow, "
+                     << pb.riskValue() << " risk "
+                     << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+                     << endl;
+            }
         }
     }
 }

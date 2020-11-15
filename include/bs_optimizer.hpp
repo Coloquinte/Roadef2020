@@ -23,6 +23,9 @@ class BsOptimizer {
 
     bool solutionFound() const;
 
+    void logBeamStart() const;
+    void logBeamEnd() const;
+
   private:
     Problem &pb;
 
