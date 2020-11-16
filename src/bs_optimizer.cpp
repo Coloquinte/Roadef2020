@@ -11,28 +11,29 @@ using namespace std;
 
 BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(params) {
     rgen = Rgen(params.seed);
-    beamWidth = 10;
 }
 
 void BsOptimizer::run() {
     resetBeam();
-    runBeam();
+    runBeam(10);
     while (true) {
         if (chrono::steady_clock::now() >= params.endTime) {
             break;
         }
-        resetBeamPartial(50);
-        runBeam();
+        int backtrackDepth = getBacktrackDepth();
+        resetBeamPartial(backtrackDepth);
+        int beamWidth = getBeamWidth();
+        runBeam(beamWidth);
     }
     assert (solutionFound());
     pb.reset(bestStartTimes);
 }
 
-void BsOptimizer::runBeam() {
+void BsOptimizer::runBeam(int beamWidth) {
     logBeamStart();
     vector<int> interventions = getInterventionOrder();
     for (int i : interventions) {
-        expandBeam(i);
+        expandBeam(i, beamWidth);
     }
     logBeamEnd();
     recordSolution();
@@ -109,12 +110,12 @@ void BsOptimizer::resetBeam() {
     beam.push_back(vector<int>(pb.nbInterventions(), -1));
 }
 
-void BsOptimizer::resetBeamPartial(int backtrackSize) {
+void BsOptimizer::resetBeamPartial(int backtrackDepth) {
     assert (solutionFound());
     pb.reset();
     beam.clear();
     vector<int> startTimes = bestStartTimes;
-    for (int i = 0; i < backtrackSize; ++i) {
+    for (int i = 0; i < backtrackDepth; ++i) {
         int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
         startTimes[intervention] = -1;
     }
@@ -125,7 +126,7 @@ bool BsOptimizer::solutionFound() const {
     return !bestStartTimes.empty();
 }
 
-void BsOptimizer::expandBeam(int intervention) {
+void BsOptimizer::expandBeam(int intervention, int beamWidth) {
     vector<NextBeamElement> beamTrials;
     for (int i = 0; i < beam.size(); ++i) {
         assert (beam[i][intervention] == -1);
@@ -148,6 +149,18 @@ void BsOptimizer::expandBeam(int intervention) {
         newBeam.push_back(node);
     }
     beam = newBeam;
+}
+
+int BsOptimizer::getBeamWidth() {
+    //double mean = 10.0;
+    //return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    return params.beamWidth;
+}
+
+int BsOptimizer::getBacktrackDepth() {
+    //double mean = pb.nbInterventions() / 4.0;
+    //return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    return params.backtrackDepth;
 }
 
 vector<int> BsOptimizer::getInterventionOrder() {

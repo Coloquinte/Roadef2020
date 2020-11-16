@@ -16,6 +16,8 @@ struct RoadefParams {
     double timeLimit;
     std::chrono::steady_clock::time_point startTime;
     std::chrono::steady_clock::time_point endTime;
+    int beamWidth;
+    int backtrackDepth;
 };
 
 class Exclusions {

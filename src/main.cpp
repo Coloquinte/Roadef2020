@@ -17,8 +17,8 @@ po::options_description getOptions() {
   desc.add_options()("instance,p", po::value<string>()->required(),
                      "Input file name (.json)");
 
-  desc.add_options()("solution,o", po::value<string>()->required(),
-                     "Solution file name (.txt)");
+  desc.add_options()("output,o", po::value<string>()->required(),
+                     "Output file name (.txt)");
 
   desc.add_options()("seed,s", po::value<size_t>()->default_value(0),
                      "Random seed");
@@ -26,11 +26,17 @@ po::options_description getOptions() {
   desc.add_options()("time-limit,t", po::value<double>()->default_value(1.0e8),
                      "Time limit");
 
+  desc.add_options()("verbosity,v", po::value<int>()->default_value(2),
+                     "Verbosity level\n    1 -> basic stats\n    2 -> new solutions\n    3 -> search process");
+
   desc.add_options()("name", "Print the team's name (J3)");
   desc.add_options()("help,h", "Print this help");
 
-  desc.add_options()("verbosity,v", po::value<int>()->default_value(2),
-                     "Verbosity level\n    1 -> basic stats\n    2 -> new solutions\n    3 -> search process");
+  desc.add_options()("beam-width", po::value<int>()->default_value(10),
+                     "Beam width during search");
+
+  desc.add_options()("backtrack-depth", po::value<int>()->default_value(50),
+                     "Backtrack depth when restarting the beam search");
 
   return desc;
 }
@@ -45,8 +51,8 @@ po::variables_map parseArguments(int argc, char **argv) {
   try {
     po::store(po::command_line_parser(argc, argv)
         .options(options)
-        .style(po::command_line_style::unix_style
-             | po::command_line_style::allow_long_disguise)
+        .style((po::command_line_style::unix_style | po::command_line_style::allow_long_disguise)
+              & ~po::command_line_style::allow_guessing & ~po::command_line_style::allow_sticky)
         .run(), vm);
 
     if (vm.count("help")) {
@@ -76,12 +82,14 @@ RoadefParams readParams(const po::variables_map &vm) {
     chrono::steady_clock::time_point endTime = startTime + chrono::duration_cast<chrono::steady_clock::duration>(chrono::duration<double>(0.99 * timeLimit));
     return RoadefParams {
       .instance = vm["instance"].as<string>(),
-      .solution = vm["solution"].as<string>(),
+      .solution = vm["output"].as<string>(),
       .verbosity = vm["verbosity"].as<int>(),
       .seed = vm["seed"].as<size_t>(),
       .timeLimit = timeLimit,
       .startTime = startTime,
-      .endTime = endTime
+      .endTime = endTime,
+      .beamWidth = vm["beam-width"].as<int>(),
+      .backtrackDepth = vm["backtrack-depth"].as<int>(),
     };
 }
 

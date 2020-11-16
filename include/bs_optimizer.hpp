@@ -13,12 +13,16 @@ class BsOptimizer {
 
     // Beam initialization
     void resetBeam();
-    void resetBeamPartial(int backtrackSize);
+    void resetBeamPartial(int backtrackDepth);
+
+    // Random parameters
+    int getBeamWidth();
+    int getBacktrackDepth();
+    std::vector<int> getInterventionOrder();
 
     // Beam exploration
-    void runBeam();
-    std::vector<int> getInterventionOrder();
-    void expandBeam(int intervention);
+    void runBeam(int beamWidth);
+    void expandBeam(int intervention, int beamWidth);
     void recordSolution();
 
     bool solutionFound() const;
@@ -36,6 +40,5 @@ class BsOptimizer {
 
     Rgen rgen;
     RoadefParams params;
-    int beamWidth;
 };
 
