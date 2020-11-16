@@ -189,6 +189,12 @@ class Problem {
     std::vector<double> measureSpanMeanRisk() const;
     std::vector<double> measureAverageDemand() const;
 
+    // Access to internal data
+    const Exclusions &exclusions() const { return exclusions_; }
+    const Resources &resources() const { return resources_; }
+    const MeanRisk &meanRisk() const { return meanRisk_; }
+    const QuantileRisk &quantileRisk() const { return quantileRisk_; }
+
   private:
     // Names
     std::vector<std::string> interventionNames_;

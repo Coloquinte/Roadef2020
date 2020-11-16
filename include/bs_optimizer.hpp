@@ -17,8 +17,16 @@ class BsOptimizer {
 
     // Random parameters
     int getBeamWidth();
+    int getBeamWidthFixed();
+    int getBeamWidthRandomUniform();
+    int getBeamWidthRandomGeom();
     int getBacktrackDepth();
+    int getBacktrackDepthFixed();
+    int getBacktrackDepthRandomUniform();
+    int getBacktrackDepthRandomGeom();
     std::vector<int> getInterventionOrder();
+    std::vector<int> getInterventionOrderRanking();
+    std::vector<int> getInterventionOrderRandom();
 
     // Beam exploration
     void runBeam(int beamWidth);

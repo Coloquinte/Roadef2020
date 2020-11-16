@@ -165,19 +165,45 @@ void BsOptimizer::expandBeam(int intervention, int beamWidth) {
 }
 
 int BsOptimizer::getBeamWidth() {
-    //double mean = 10.0;
-    //return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    return getBeamWidthRandomGeom();
+}
+
+int BsOptimizer::getBeamWidthFixed() {
     return params.beamWidth;
 }
 
+int BsOptimizer::getBeamWidthRandomUniform() {
+    return uniform_int_distribution<int>(1, 2*params.beamWidth+1)(rgen);
+}
+
+int BsOptimizer::getBeamWidthRandomGeom() {
+    double mean = params.beamWidth;
+    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+}
+
 int BsOptimizer::getBacktrackDepth() {
-    //double mean = pb.nbInterventions() / 4.0;
-    //return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    return getBacktrackDepthRandomGeom();
+}
+
+int BsOptimizer::getBacktrackDepthFixed() {
     return params.backtrackDepth;
 }
 
+int BsOptimizer::getBacktrackDepthRandomUniform() {
+    return uniform_int_distribution<int>(1, 2*params.backtrackDepth+1)(rgen);
+}
+
+int BsOptimizer::getBacktrackDepthRandomGeom() {
+    double mean = params.backtrackDepth;
+    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+}
+
 vector<int> BsOptimizer::getInterventionOrder() {
-    assert (beam.size() == 1);
+    return getInterventionOrderRanking();
+}
+
+vector<int> BsOptimizer::getInterventionOrderRanking() {
+    assert (beam.size() >= 1);
     // Only keep interventions that are not set yet
     vector<int> interventions;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
@@ -197,5 +223,17 @@ vector<int> BsOptimizer::getInterventionOrder() {
         order.push_back(p.second);
     }
     return order;
+}
+
+vector<int> BsOptimizer::getInterventionOrderRandom() {
+    assert (beam.size() >= 1);
+    vector<int> interventions;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        if (beam[0][i] == -1) {
+            interventions.push_back(i);
+        }
+    }
+    shuffle(interventions.begin(), interventions.end(), rgen);
+    return interventions;
 }
 
