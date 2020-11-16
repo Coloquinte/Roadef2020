@@ -106,20 +106,23 @@ int main(int argc, char **argv) {
   }
 
   if (params.verbosity >= 1) {
-    chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
+    if (params.verbosity >= 2) {
+      cout << "Random seed set to " << params.seed << ". ";
+      if (params.timeLimit < 1e8) {
+          cout << "Time limit set to " << params.timeLimit << "s. ";
+      }
+      else {
+          cout << "Time limit not set. ";
+      }
+      chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
+      cout << "Parsing took " << elapsed.count() << "s. ";
+      cout << endl;
+    }
     cout << "Problem with "
          << pb.nbInterventions() << " interventions "
          << pb.nbResources() << " resources "
          << pb.nbTimesteps() << " timesteps "
-         << "read after " << elapsed.count() << "s "
          << endl;
-    cout << "Random seed is " << params.seed << endl;
-    if (params.timeLimit < 1e8) {
-        cout << "Time limit is " << params.timeLimit << endl;
-    }
-    else {
-        cout << "No time limit" << endl;
-    }
   }
 
   BsOptimizer opti(pb, params);

@@ -147,7 +147,9 @@ class Problem {
   public:
     struct Objective;
 
-    static constexpr double resourceTol = 1.0e-6;
+    // Resource tolerance; slightly less than used by the checker
+    static constexpr double resourceTol = 9.9e-6;
+    // Risk tolerance; used only to compare solutions
     static constexpr double riskTol = 1.0e-8;
 
     static Problem read(std::istream &);
