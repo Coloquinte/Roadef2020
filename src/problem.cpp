@@ -218,6 +218,24 @@ Problem Problem::readFile(const string &fname) {
     return read(f);
 }
 
+void Problem::readSolution(istream &is) {
+    vector<int> sol(nbInterventions(), -1);
+    while (is.good()) {
+        string name;
+        int startTime;
+        is >> name >> startTime;
+        if (!is.fail()) {
+            sol[interventionMappings_[name]] = startTime - 1;
+        }
+    }
+    reset(sol);
+}
+
+void Problem::readSolutionFile(const string &fname) {
+    ifstream f(fname);
+    return readSolution(f);
+}
+
 void Problem::writeSolution(ostream &os) {
     for (int i = 0; i < nbInterventions(); ++i) {
         os << interventionNames_[i] << " " << startTimes_[i] + 1 << endl;
@@ -486,6 +504,13 @@ Problem::Objective Problem::objectiveIf(int intervention, int startTime, Objecti
     quantileRisk_.unset(intervention, startTime);
 
     return ret;
+}
+
+bool Problem::validSolution() const {
+    for (int i = 0; i < nbInterventions(); ++i) {
+        if (!assigned(i)) return false;
+    }
+    return true;
 }
 
 vector<double> Problem::measureSpanMeanRisk() const {

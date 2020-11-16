@@ -11,11 +11,15 @@
 struct RoadefParams {
     std::string instance;
     std::string solution;
+
     int verbosity;
     size_t seed;
+    bool restart;
+
     double timeLimit;
     std::chrono::steady_clock::time_point startTime;
     std::chrono::steady_clock::time_point endTime;
+
     int beamWidth;
     int backtrackDepth;
 };
@@ -148,6 +152,8 @@ class Problem {
 
     static Problem read(std::istream &);
     static Problem readFile(const std::string&);
+    void readSolution(std::istream &);
+    void readSolutionFile(const std::string&);
     void writeSolution(std::ostream &);
     void writeSolutionFile(const std::string&);
 
@@ -163,6 +169,7 @@ class Problem {
     double meanRiskValue() const { return meanRisk_.value(); }
     double quantileRiskValue() const { return quantileRisk_.value(); }
     Objective objective() const;
+    bool validSolution() const;
 
     bool assigned(int intervention) const { return startTimes_[intervention] != -1; }
     int startTime(int intervention) const { return startTimes_[intervention]; }

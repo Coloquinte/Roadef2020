@@ -14,8 +14,7 @@ BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(para
 }
 
 void BsOptimizer::run() {
-    resetBeam();
-    runBeam(10);
+    initSolution();
     while (true) {
         if (chrono::steady_clock::now() >= params.endTime) {
             break;
@@ -25,8 +24,9 @@ void BsOptimizer::run() {
         int beamWidth = getBeamWidth();
         runBeam(beamWidth);
     }
-    assert (solutionFound());
-    pb.reset(bestStartTimes);
+    if (solutionFound()) {
+        pb.reset(bestStartTimes);
+    }
 }
 
 void BsOptimizer::runBeam(int beamWidth) {
@@ -69,6 +69,21 @@ void BsOptimizer::logBeamEnd() const {
     }
 }
 
+void BsOptimizer::initSolution() {
+    if (pb.validSolution()) {
+        bestObj = pb.objective();
+        bestStartTimes = pb.startTimes();
+        if (params.verbosity >= 2) {
+            cout << "Initial solution with "
+                 << pb.exclusionValue() << " exclusions, "
+                 << pb.resourceValue() << " overflow, "
+                 << pb.riskValue() << " risk "
+                 << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+                 << endl;
+        }
+    }
+}
+
 void BsOptimizer::recordSolution() {
     assert (!beam.empty());
     for (vector<int> startTimes : beam) {
@@ -104,22 +119,20 @@ struct NextBeamElement {
     bool operator<(const NextBeamElement &o) const { return obj < o.obj; }
 };
 
-void BsOptimizer::resetBeam() {
-    pb.reset();
-    beam.clear();
-    beam.push_back(vector<int>(pb.nbInterventions(), -1));
-}
-
 void BsOptimizer::resetBeamPartial(int backtrackDepth) {
-    assert (solutionFound());
     pb.reset();
     beam.clear();
-    vector<int> startTimes = bestStartTimes;
-    for (int i = 0; i < backtrackDepth; ++i) {
-        int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
-        startTimes[intervention] = -1;
+    if (solutionFound()) {
+        vector<int> startTimes = bestStartTimes;
+        for (int i = 0; i < backtrackDepth; ++i) {
+            int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
+            startTimes[intervention] = -1;
+        }
+        beam.push_back(startTimes);
     }
-    beam.push_back(startTimes);
+    else {
+        beam.push_back(vector<int>(pb.nbInterventions(), -1));
+    }
 }
 
 bool BsOptimizer::solutionFound() const {

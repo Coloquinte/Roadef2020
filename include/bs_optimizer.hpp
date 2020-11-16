@@ -9,10 +9,10 @@ class BsOptimizer {
   public:
     BsOptimizer(Problem &pb, RoadefParams params);
 
+    void initSolution();
     void run();
 
     // Beam initialization
-    void resetBeam();
     void resetBeamPartial(int backtrackDepth);
 
     // Random parameters

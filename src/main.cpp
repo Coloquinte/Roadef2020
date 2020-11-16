@@ -38,6 +38,8 @@ po::options_description getOptions() {
   desc.add_options()("backtrack-depth", po::value<int>()->default_value(50),
                      "Backtrack depth when restarting the beam search");
 
+  desc.add_options()("restart", "Restart from the solution file");
+
   return desc;
 }
 
@@ -85,6 +87,7 @@ RoadefParams readParams(const po::variables_map &vm) {
       .solution = vm["output"].as<string>(),
       .verbosity = vm["verbosity"].as<int>(),
       .seed = vm["seed"].as<size_t>(),
+      .restart = vm.count("restart"),
       .timeLimit = timeLimit,
       .startTime = startTime,
       .endTime = endTime,
@@ -98,6 +101,9 @@ int main(int argc, char **argv) {
 
   RoadefParams params = readParams(vm);
   Problem pb = Problem::readFile(params.instance);
+  if (params.restart) {
+      pb.readSolutionFile(params.solution);
+  }
 
   if (params.verbosity >= 1) {
     chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
