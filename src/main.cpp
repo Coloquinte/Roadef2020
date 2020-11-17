@@ -41,7 +41,7 @@ po::options_description getOptions() {
   desc.add_options()("restart-depth", po::value<double>()->default_value(50.0),
                      "Depth used to backtrack during restarts");
 
-  desc.add_options()("restart", "Restart from the solution file");
+  desc.add_options()("warm-start", "Warm-start from the solution file");
 
   return desc;
 }
@@ -90,7 +90,7 @@ RoadefParams readParams(const po::variables_map &vm) {
       .solution = vm["output"].as<string>(),
       .verbosity = vm["verbosity"].as<int>(),
       .seed = vm["seed"].as<size_t>(),
-      .restart = vm.count("restart"),
+      .warmStart = vm.count("warm-start"),
       .timeLimit = timeLimit,
       .startTime = startTime,
       .endTime = endTime,
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
 
   RoadefParams params = readParams(vm);
   Problem pb = Problem::readFile(params.instance);
-  if (params.restart) {
+  if (params.warmStart) {
       pb.readSolutionFile(params.solution);
   }
 

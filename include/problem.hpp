@@ -14,7 +14,7 @@ struct RoadefParams {
 
     int verbosity;
     size_t seed;
-    bool restart;
+    bool warmStart;
 
     double timeLimit;
     std::chrono::steady_clock::time_point startTime;
