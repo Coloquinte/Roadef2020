@@ -13,7 +13,7 @@ class BsOptimizer {
     void run();
 
     // Beam initialization
-    void resetBeamPartial(int backtrackDepth);
+    void resetBeam(int restartDepth);
 
     // Random parameters
     int getBeamWidth();
@@ -24,12 +24,17 @@ class BsOptimizer {
     int getBacktrackDepthFixed();
     int getBacktrackDepthRandomUniform();
     int getBacktrackDepthRandomGeom();
+    int getRestartDepth();
+    int getRestartDepthFixed();
+    int getRestartDepthRandomUniform();
+    int getRestartDepthRandomGeom();
     std::vector<int> getInterventionOrder();
     std::vector<int> getInterventionOrderRanking();
     std::vector<int> getInterventionOrderRandom();
 
     // Beam exploration
     void runBeam(int beamWidth);
+    void backtrackBeam(int beamWidth, int depth);
     void expandBeam(int intervention, int beamWidth);
     void recordSolution();
 

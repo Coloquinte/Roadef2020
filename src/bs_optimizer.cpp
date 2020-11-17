@@ -19,8 +19,8 @@ void BsOptimizer::run() {
         if (chrono::steady_clock::now() >= params.endTime) {
             break;
         }
-        int backtrackDepth = getBacktrackDepth();
-        resetBeamPartial(backtrackDepth);
+        int restartDepth = getRestartDepth();
+        resetBeam(restartDepth);
         int beamWidth = getBeamWidth();
         runBeam(beamWidth);
     }
@@ -30,13 +30,28 @@ void BsOptimizer::run() {
 }
 
 void BsOptimizer::runBeam(int beamWidth) {
+    assert (!beam.empty());
     logBeamStart();
     vector<int> interventions = getInterventionOrder();
     for (int i : interventions) {
+        backtrackBeam(beamWidth, getBacktrackDepth());
         expandBeam(i, beamWidth);
     }
     logBeamEnd();
     recordSolution();
+}
+
+void BsOptimizer::backtrackBeam(int beamWidth, int depth) {
+    assert (!beam.empty());
+    int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
+    if (beam[0][intervention] == -1) return;
+    for (vector<int> &elt : beam) {
+        elt[intervention] = -1;
+    }
+    // Avoid creating duplicates
+    sort(beam.begin(), beam.end());
+    beam.erase(unique(beam.begin(), beam.end()), beam.end());
+    expandBeam(intervention, beamWidth);
 }
 
 void BsOptimizer::logBeamStart() const {
@@ -119,12 +134,12 @@ struct NextBeamElement {
     bool operator<(const NextBeamElement &o) const { return obj < o.obj; }
 };
 
-void BsOptimizer::resetBeamPartial(int backtrackDepth) {
+void BsOptimizer::resetBeam(int restartDepth) {
     pb.reset();
     beam.clear();
     if (solutionFound()) {
         vector<int> startTimes = bestStartTimes;
-        for (int i = 0; i < backtrackDepth; ++i) {
+        for (int i = 0; i < restartDepth; ++i) {
             int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
             startTimes[intervention] = -1;
         }
@@ -173,12 +188,12 @@ int BsOptimizer::getBeamWidthFixed() {
 }
 
 int BsOptimizer::getBeamWidthRandomUniform() {
-    return uniform_int_distribution<int>(1, 2*params.beamWidth+1)(rgen);
+    return uniform_int_distribution<int>(1, 2*params.beamWidth-1)(rgen);
 }
 
 int BsOptimizer::getBeamWidthRandomGeom() {
     double mean = params.beamWidth;
-    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
 }
 
 int BsOptimizer::getBacktrackDepth() {
@@ -190,12 +205,32 @@ int BsOptimizer::getBacktrackDepthFixed() {
 }
 
 int BsOptimizer::getBacktrackDepthRandomUniform() {
-    return uniform_int_distribution<int>(1, 2*params.backtrackDepth+1)(rgen);
+    double mean = params.backtrackDepth;
+    if (mean <= 0) return 0;
+    return uniform_int_distribution<int>(0, 2*params.backtrackDepth)(rgen);
 }
 
 int BsOptimizer::getBacktrackDepthRandomGeom() {
     double mean = params.backtrackDepth;
-    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
+    if (mean <= 0) return 0;
+    return geometric_distribution<int>(1.0/mean)(rgen);
+}
+
+int BsOptimizer::getRestartDepth() {
+    return getRestartDepthRandomGeom();
+}
+
+int BsOptimizer::getRestartDepthFixed() {
+    return params.restartDepth;
+}
+
+int BsOptimizer::getRestartDepthRandomUniform() {
+    return uniform_int_distribution<int>(1, 2*params.restartDepth-1)(rgen);
+}
+
+int BsOptimizer::getRestartDepthRandomGeom() {
+    double mean = params.restartDepth;
+    return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
 }
 
 vector<int> BsOptimizer::getInterventionOrder() {

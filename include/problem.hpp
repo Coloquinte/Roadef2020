@@ -20,8 +20,10 @@ struct RoadefParams {
     std::chrono::steady_clock::time_point startTime;
     std::chrono::steady_clock::time_point endTime;
 
-    int beamWidth;
-    int backtrackDepth;
+    // Those are averages, so may be non-integer
+    double beamWidth;
+    double backtrackDepth;
+    double restartDepth;
 };
 
 class Exclusions {

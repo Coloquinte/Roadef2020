@@ -23,7 +23,7 @@ po::options_description getOptions() {
   desc.add_options()("seed,s", po::value<size_t>()->default_value(0),
                      "Random seed");
 
-  desc.add_options()("time-limit,t", po::value<double>()->default_value(1.0e8),
+  desc.add_options()("time-limit,t", po::value<double>(),
                      "Time limit");
 
   desc.add_options()("verbosity,v", po::value<int>()->default_value(2),
@@ -32,11 +32,14 @@ po::options_description getOptions() {
   desc.add_options()("name", "Print the team's name (J3)");
   desc.add_options()("help,h", "Print this help");
 
-  desc.add_options()("beam-width", po::value<int>()->default_value(10),
+  desc.add_options()("beam-width", po::value<double>()->default_value(10.0),
                      "Beam width during search");
 
-  desc.add_options()("backtrack-depth", po::value<int>()->default_value(50),
-                     "Backtrack depth when restarting the beam search");
+  desc.add_options()("backtrack-depth", po::value<double>()->default_value(0.5),
+                     "Depth used to backtrack during search");
+
+  desc.add_options()("restart-depth", po::value<double>()->default_value(50.0),
+                     "Depth used to backtrack during restarts");
 
   desc.add_options()("restart", "Restart from the solution file");
 
@@ -79,7 +82,7 @@ po::variables_map parseArguments(int argc, char **argv) {
 }
 
 RoadefParams readParams(const po::variables_map &vm) {
-    double timeLimit = vm["time-limit"].as<double>();
+    double timeLimit = vm.count("time-limit") ? vm["time-limit"].as<double>() : 1.0e8;
     chrono::steady_clock::time_point startTime = chrono::steady_clock::now();
     chrono::steady_clock::time_point endTime = startTime + chrono::duration_cast<chrono::steady_clock::duration>(chrono::duration<double>(0.99 * timeLimit));
     return RoadefParams {
@@ -91,8 +94,9 @@ RoadefParams readParams(const po::variables_map &vm) {
       .timeLimit = timeLimit,
       .startTime = startTime,
       .endTime = endTime,
-      .beamWidth = vm["beam-width"].as<int>(),
-      .backtrackDepth = vm["backtrack-depth"].as<int>(),
+      .beamWidth = vm["beam-width"].as<double>(),
+      .backtrackDepth = vm["backtrack-depth"].as<double>(),
+      .restartDepth = vm["restart-depth"].as<double>(),
     };
 }
 
