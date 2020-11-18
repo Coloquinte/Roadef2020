@@ -133,6 +133,18 @@ Problem Problem::read(istream &is) {
         pb.resources_.lowerBound_.push_back(resourcesJ[resourceName][MIN_STR].get<vector<double> >());
         pb.resources_.upperBound_.push_back(resourcesJ[resourceName][MAX_STR].get<vector<double> >());
     }
+    // Add some tolerance; slightly less than used by the checker
+    const double tolerance = 9.9e-6;
+    for (vector<double> &lbs : pb.resources_.lowerBound_) {
+        for (double &lb : lbs) {
+            lb -= tolerance;
+        }
+    }
+    for (vector<double> &ubs : pb.resources_.upperBound_) {
+        for (double &ub : ubs) {
+            ub += tolerance;
+        }
+    }
     for (int maxStartTime : pb.maxStartTimes_) {
         pb.resources_.demands_.push_back(vector<vector<Resources::ResourceContribution> >(maxStartTime));
     }

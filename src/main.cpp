@@ -47,9 +47,6 @@ po::options_description getOptions() {
 }
 
 po::variables_map parseArguments(int argc, char **argv) {
-  cout << fixed << setprecision(3);
-  cerr << fixed << setprecision(3);
-
   po::options_description options = getOptions();
 
   po::variables_map vm;
@@ -113,13 +110,13 @@ int main(int argc, char **argv) {
     if (params.verbosity >= 2) {
       cout << "Random seed set to " << params.seed << ". ";
       if (params.timeLimit < 1e8) {
-          cout << "Time limit set to " << params.timeLimit << "s. ";
+          cout << "Time limit set to " << fixed << setprecision(1) << params.timeLimit << "s. ";
       }
       else {
           cout << "Time limit not set. ";
       }
       chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
-      cout << "Parsing took " << elapsed.count() << "s. ";
+      cout << "Parsing took " << fixed << setprecision(1) << elapsed.count() << "s. ";
       cout << endl;
     }
     cout << "Problem with "
@@ -135,9 +132,9 @@ int main(int argc, char **argv) {
   if (params.verbosity >= 1) {
     cout << "Solution with "
          << pb.exclusionValue() << " exclusions, "
-         << pb.resourceValue() << " overflow, "
-         << pb.riskValue() << " risk "
-         << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+         << fixed << setprecision(2) << pb.resourceValue() << " overflow, "
+         << fixed << setprecision(5) << pb.riskValue() << " risk "
+         << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
          << endl;
   }
 
