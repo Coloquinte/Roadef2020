@@ -17,6 +17,7 @@ class BsAnalyzer {
     Problem &pb;
 
     std::vector<int> targetStartTimes;
+    std::vector<std::vector<int> > orders;
 
     Rgen rgen;
     RoadefParams params;

@@ -90,7 +90,6 @@ RoadefParams readParams(const po::variables_map &vm) {
       .solution = vm["output"].as<string>(),
       .verbosity = vm["verbosity"].as<int>(),
       .seed = vm["seed"].as<size_t>(),
-      .warmStart = vm.count("warm-start"),
       .timeLimit = timeLimit,
       .startTime = startTime,
       .endTime = endTime,
@@ -105,12 +104,12 @@ int main(int argc, char **argv) {
 
   RoadefParams params = readParams(vm);
   Problem pb = Problem::readFile(params.instance);
-  if (vm.count("analyze") {
+  if (vm.count("analyze")) {
       pb.readSolutionFile(params.solution);
       BsAnalyzer(pb, params).run();
       exit(0);
   }
-  if (params.warmStart) {
+  if (vm.count("warm-start")) {
       pb.readSolutionFile(params.solution);
   }
 

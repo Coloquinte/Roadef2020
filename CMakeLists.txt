@@ -13,6 +13,7 @@ SET(SOURCES
   src/main.cpp
   src/problem.cpp
   src/bs_optimizer.cpp
+  src/bs_analyzer.cpp
 )
 
 add_executable(roadef ${SOURCES})
