@@ -235,10 +235,19 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 }
 
 vector<int> BsOptimizer::getInterventionOrder() {
-    return getInterventionOrderRanking();
+    int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    if (choice == 0) {
+        return getInterventionOrderRiskRanking();
+    }
+    else if (choice == 1) {
+        return getInterventionOrderDemandRanking();
+    }
+    else {
+        return getInterventionOrderRandom();
+    }
 }
 
-vector<int> BsOptimizer::getInterventionOrderRanking() {
+vector<int> BsOptimizer::getInterventionOrderRiskRanking() {
     assert (beam.size() >= 1);
     // Only keep interventions that are not set yet
     vector<int> interventions;
@@ -260,6 +269,30 @@ vector<int> BsOptimizer::getInterventionOrderRanking() {
     }
     return order;
 }
+
+vector<int> BsOptimizer::getInterventionOrderDemandRanking() {
+    assert (beam.size() >= 1);
+    // Only keep interventions that are not set yet
+    vector<int> interventions;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        if (beam[0][i] == -1) {
+            interventions.push_back(i);
+        }
+    }
+    // Use a heuristic measure to decide the order
+    vector<double> ranking = pb.measureAverageDemand();
+    vector<pair<double, int> > costs;
+    for (int i : interventions) {
+        costs.emplace_back(-ranking[i], i);
+    }
+    sort(costs.begin(), costs.end());
+    vector<int> order;
+    for (auto p : costs) {
+        order.push_back(p.second);
+    }
+    return order;
+}
+
 
 vector<int> BsOptimizer::getInterventionOrderRandom() {
     assert (beam.size() >= 1);

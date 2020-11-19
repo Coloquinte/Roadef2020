@@ -29,7 +29,8 @@ class BsOptimizer {
     int getRestartDepthRandomUniform();
     int getRestartDepthRandomGeom();
     std::vector<int> getInterventionOrder();
-    std::vector<int> getInterventionOrderRanking();
+    std::vector<int> getInterventionOrderDemandRanking();
+    std::vector<int> getInterventionOrderRiskRanking();
     std::vector<int> getInterventionOrderRandom();
 
     // Beam exploration
