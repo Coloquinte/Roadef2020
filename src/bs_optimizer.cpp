@@ -140,8 +140,13 @@ void BsOptimizer::resetBeam(int restartDepth) {
     beam.clear();
     if (solutionFound()) {
         vector<int> startTimes = bestStartTimes;
-        for (int i = 0; i < restartDepth; ++i) {
-            int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
+        vector<int> interventions;
+        for (int i = 0; i < pb.nbInterventions(); ++i) {
+            interventions.push_back(i);
+        }
+        shuffle(interventions.begin(), interventions.end(), rgen);
+        for (int i = 0; i < restartDepth && i < pb.nbInterventions(); ++i) {
+            int intervention = interventions[i];
             startTimes[intervention] = -1;
         }
         beam.push_back(startTimes);
