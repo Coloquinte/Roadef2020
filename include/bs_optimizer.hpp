@@ -13,7 +13,7 @@ class BsOptimizer {
     void run();
 
     // Beam initialization
-    void resetBeam(int restartDepth);
+    void restartBeam(int restartDepth);
 
     // Random parameters
     int getBeamWidth();
@@ -28,10 +28,13 @@ class BsOptimizer {
     int getRestartDepthFixed();
     int getRestartDepthRandomUniform();
     int getRestartDepthRandomGeom();
-    std::vector<int> getSearchOrder();
-    std::vector<int> getSearchOrderDemandRanking();
-    std::vector<int> getSearchOrderRiskRanking();
-    std::vector<int> getSearchOrderRandom();
+    std::vector<int> getSearchPriority();
+    std::vector<int> getSearchPriorityDemandRanking();
+    std::vector<int> getSearchPriorityRiskRanking();
+    std::vector<int> getSearchPriorityRandom();
+    std::vector<int> getRestartPriority();
+    std::vector<int> getRestartPriorityTimesteps();
+    std::vector<int> getRestartPriorityRandom();
 
     // Beam exploration
     void runBeam(int beamWidth);
