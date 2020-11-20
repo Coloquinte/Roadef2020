@@ -33,10 +33,12 @@ void BsOptimizer::run() {
 void BsOptimizer::runBeam(int beamWidth) {
     assert (!beam.empty());
     logBeamStart();
-    vector<int> interventions = getInterventionOrder();
+    vector<int> interventions = getSearchOrder();
     for (int i : interventions) {
-        backtrackBeam(beamWidth, getBacktrackDepth());
-        expandBeam(i, beamWidth);
+        if (!alreadyAssigned(i)) {
+            backtrackBeam(beamWidth, getBacktrackDepth());
+            expandBeam(i, beamWidth);
+        }
     }
     logBeamEnd();
     recordSolution();
@@ -146,8 +148,7 @@ void BsOptimizer::resetBeam(int restartDepth) {
         }
         shuffle(interventions.begin(), interventions.end(), rgen);
         for (int i = 0; i < restartDepth && i < pb.nbInterventions(); ++i) {
-            int intervention = interventions[i];
-            startTimes[intervention] = -1;
+            startTimes[interventions[i]] = -1;
         }
         beam.push_back(startTimes);
     }
@@ -158,6 +159,11 @@ void BsOptimizer::resetBeam(int restartDepth) {
 
 bool BsOptimizer::solutionFound() const {
     return !bestStartTimes.empty();
+}
+
+bool BsOptimizer::alreadyAssigned(int intervention) const {
+    assert (!beam.empty());
+    return beam[0][intervention] != -1;
 }
 
 void BsOptimizer::expandBeam(int intervention, int beamWidth) {
@@ -239,33 +245,23 @@ int BsOptimizer::getRestartDepthRandomGeom() {
     return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
 }
 
-vector<int> BsOptimizer::getInterventionOrder() {
+vector<int> BsOptimizer::getSearchOrder() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
     if (choice == 0) {
-        return getInterventionOrderRiskRanking();
+        return getSearchOrderRiskRanking();
     }
     else if (choice == 1) {
-        return getInterventionOrderDemandRanking();
+        return getSearchOrderDemandRanking();
     }
     else {
-        return getInterventionOrderRandom();
+        return getSearchOrderRandom();
     }
 }
 
-vector<int> BsOptimizer::getInterventionOrderRiskRanking() {
-    assert (beam.size() >= 1);
-    // Only keep interventions that are not set yet
-    vector<int> interventions;
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        if (beam[0][i] == -1) {
-            interventions.push_back(i);
-        }
-    }
-    // Use a heuristic measure to decide the order
-    vector<double> ranking = pb.measureSpanMeanRisk();
+vector<int> rankingFromMeasure(const vector<double> &measure) {
     vector<pair<double, int> > costs;
-    for (int i : interventions) {
-        costs.emplace_back(-ranking[i], i);
+    for (int i = 0; i < measure.size(); ++i) {
+        costs.emplace_back(-measure[i], i);
     }
     sort(costs.begin(), costs.end());
     vector<int> order;
@@ -275,37 +271,18 @@ vector<int> BsOptimizer::getInterventionOrderRiskRanking() {
     return order;
 }
 
-vector<int> BsOptimizer::getInterventionOrderDemandRanking() {
-    assert (beam.size() >= 1);
-    // Only keep interventions that are not set yet
-    vector<int> interventions;
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        if (beam[0][i] == -1) {
-            interventions.push_back(i);
-        }
-    }
-    // Use a heuristic measure to decide the order
-    vector<double> ranking = pb.measureAverageDemand();
-    vector<pair<double, int> > costs;
-    for (int i : interventions) {
-        costs.emplace_back(-ranking[i], i);
-    }
-    sort(costs.begin(), costs.end());
-    vector<int> order;
-    for (auto p : costs) {
-        order.push_back(p.second);
-    }
-    return order;
+vector<int> BsOptimizer::getSearchOrderRiskRanking() {
+    return rankingFromMeasure(pb.measureSpanMeanRisk());
 }
 
+vector<int> BsOptimizer::getSearchOrderDemandRanking() {
+    return rankingFromMeasure(pb.measureAverageDemand());
+}
 
-vector<int> BsOptimizer::getInterventionOrderRandom() {
-    assert (beam.size() >= 1);
+vector<int> BsOptimizer::getSearchOrderRandom() {
     vector<int> interventions;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
-        if (beam[0][i] == -1) {
-            interventions.push_back(i);
-        }
+        interventions.push_back(i);
     }
     shuffle(interventions.begin(), interventions.end(), rgen);
     return interventions;

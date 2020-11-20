@@ -28,10 +28,10 @@ class BsOptimizer {
     int getRestartDepthFixed();
     int getRestartDepthRandomUniform();
     int getRestartDepthRandomGeom();
-    std::vector<int> getInterventionOrder();
-    std::vector<int> getInterventionOrderDemandRanking();
-    std::vector<int> getInterventionOrderRiskRanking();
-    std::vector<int> getInterventionOrderRandom();
+    std::vector<int> getSearchOrder();
+    std::vector<int> getSearchOrderDemandRanking();
+    std::vector<int> getSearchOrderRiskRanking();
+    std::vector<int> getSearchOrderRandom();
 
     // Beam exploration
     void runBeam(int beamWidth);
@@ -40,6 +40,7 @@ class BsOptimizer {
     void recordSolution();
 
     bool solutionFound() const;
+    bool alreadyAssigned(int intervention) const;
 
     void logBeamStart() const;
     void logBeamEnd() const;
