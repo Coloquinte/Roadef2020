@@ -12,6 +12,9 @@ using namespace std;
 
 BsOptimizer::BsOptimizer(Problem &pb, RoadefParams params) : pb(pb), params(params) {
     rgen = Rgen(params.seed);
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        assignmentCounts.push_back(vector<size_t>(pb.maxStartTime(i), 0));
+    }
 }
 
 void BsOptimizer::run() {
@@ -26,6 +29,7 @@ void BsOptimizer::run() {
         runBeam(beamWidth);
         pb.reset(bestStartTimes);
     }
+    logSearchEnd();
 }
 
 void BsOptimizer::runBeam(int beamWidth) {
@@ -81,6 +85,29 @@ void BsOptimizer::logBeamEnd() const {
         values.erase(unique(values.begin(), values.end()), values.end());
         if (values.size() >= 2) {
             cout << "\tIntervention " << i << ": \t" << values.size() << " different times" << endl;
+        }
+    }
+}
+
+void BsOptimizer::logSearchEnd() const {
+    if (params.verbosity < 3) return;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        size_t totCount = 0;
+        for (size_t count : assignmentCounts[i]) {
+            totCount += count;
+        }
+        vector<pair<double, int> > timeCounts;
+        for (int t = 0; t < pb.maxStartTime(i); ++t) {
+            if (assignmentCounts[i][t] > 0) {
+                timeCounts.emplace_back(100.0 * assignmentCounts[i][t] / totCount, t);
+            }
+        }
+        sort(timeCounts.begin(), timeCounts.end(), greater<>());
+        cout << pb.interventionNames()[i] << ": " << timeCounts.size() << " times" << endl;
+        for (auto p : timeCounts) {
+            if (p.first > 0.1) {
+                cout << "\t" << p.second << ":\t" << p.first << "%" << endl;
+            }
         }
     }
 }
@@ -181,6 +208,7 @@ void BsOptimizer::expandBeam(int intervention, int beamWidth) {
         vector<int> node = beam[elt.node];
         node[intervention] = elt.time;
         newBeam.push_back(node);
+        ++assignmentCounts[intervention][elt.time];
     }
     beam = newBeam;
 }

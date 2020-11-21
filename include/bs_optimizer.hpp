@@ -47,6 +47,7 @@ class BsOptimizer {
 
     void logBeamStart() const;
     void logBeamEnd() const;
+    void logSearchEnd() const;
 
   private:
     Problem &pb;
@@ -55,6 +56,8 @@ class BsOptimizer {
     Problem::Objective bestObj;
 
     std::vector<std::vector<int> > beam;
+
+    std::vector<std::vector<size_t> > assignmentCounts;
 
     Rgen rgen;
     RoadefParams params;

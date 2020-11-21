@@ -195,6 +195,8 @@ class Problem {
     const Resources &resources() const { return resources_; }
     const MeanRisk &meanRisk() const { return meanRisk_; }
     const QuantileRisk &quantileRisk() const { return quantileRisk_; }
+    const std::vector<std::string> &interventionNames() const { return interventionNames_; }
+    const std::vector<std::string> &resourceNames() const { return resourceNames_; }
 
   private:
     // Names
