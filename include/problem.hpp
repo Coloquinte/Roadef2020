@@ -44,6 +44,7 @@ class Exclusions {
 
     int value() const { return currentValue_; }
     const std::vector<int> &presence(int timestep) const { return currentPresence_[timestep]; }
+    int duration(int intervention, int timestep) const { return durations_[intervention][timestep]; }
 
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
@@ -176,6 +177,7 @@ class Problem {
 
     bool assigned(int intervention) const { return startTimes_[intervention] != -1; }
     int startTime(int intervention) const { return startTimes_[intervention]; }
+    int duration(int intervention, int startTime) const { return exclusions_.duration(intervention, startTime); }
     const std::vector<int> &presence(int timestep) const { return exclusions_.presence(timestep); }
     const std::vector<int> &startTimes() const { return startTimes_; }
 

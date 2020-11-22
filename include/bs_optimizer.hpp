@@ -33,8 +33,11 @@ class BsOptimizer {
     std::vector<int> getSearchPriorityRiskRanking();
     std::vector<int> getSearchPriorityRandom();
     std::vector<int> getRestartPriority();
+    std::vector<int> getRestartPriorityConflicts();
     std::vector<int> getRestartPriorityTimesteps();
     std::vector<int> getRestartPriorityRandom();
+    std::vector<int> getInterventionOrderRandom();
+    std::vector<int> getTimestepOrderRandom();
 
     // Beam exploration
     void runBeam(int beamWidth);

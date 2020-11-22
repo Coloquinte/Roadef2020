@@ -269,6 +269,12 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 
 vector<int> BsOptimizer::getSearchPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    // TODO: improve priority measures
+    // * normalize
+    // * combine
+    // * introduce new measures
+    //   - number of valid timesteps
+    //   - average duration
     if (choice == 0) {
         return getSearchPriorityRiskRanking();
     }
@@ -302,59 +308,117 @@ vector<int> BsOptimizer::getSearchPriorityDemandRanking() {
 }
 
 vector<int> BsOptimizer::getSearchPriorityRandom() {
-    vector<int> interventions;
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        interventions.push_back(i);
-    }
-    shuffle(interventions.begin(), interventions.end(), rgen);
-    return interventions;
+    return getInterventionOrderRandom();
 }
 
 vector<int> BsOptimizer::getRestartPriority() {
-    int choice = uniform_int_distribution<int>(0, 1)(rgen);
+    int choice = uniform_int_distribution<int>(0, 2)(rgen);
     if (choice == 0) {
         return getRestartPriorityTimesteps();
+    }
+    else if (choice == 1) {
+        return getRestartPriorityConflicts();
     }
     else {
         return getRestartPriorityRandom();
     }
 }
 
-vector<int> BsOptimizer::getRestartPriorityTimesteps() {
-    vector<int> timesteps;
-    for (int i = 0; i < pb.nbTimesteps(); ++i) {
-        timesteps.push_back(i);
-    }
-    shuffle(timesteps.begin(), timesteps.end(), rgen);
+vector<int> BsOptimizer::getRestartPriorityConflicts() {
+    // Pick the most used timesteps for an intervention
+    // Restart all interventions that are in conflict with those
+    if (!solutionFound()) return getInterventionOrderRandom();
+    vector<int> interventions = getInterventionOrderRandom();
     vector<char> interventionSeen(pb.nbInterventions(), 0);
-    vector<int> interventions;
+    vector<int> order;
+    for (int i : interventions) {
+        if (interventionSeen[i]) {
+            continue;
+        }
+        interventionSeen[i] = 1;
+        order.push_back(i);
+        vector<pair<size_t, int> > toSort;
+        for (int t = 0; t < pb.maxStartTime(i); ++t) {
+            toSort.emplace_back(assignmentCounts[i][t], t);
+        }
+        sort(toSort.begin(), toSort.end(), greater<>());
+        for (int j = 0; j < toSort.size(); ++j) {
+            int startTime = toSort[j].second;
+            if (startTime == bestStartTimes[i]) {
+                // Do not free the current best start time
+                continue;
+            }
+            if (toSort[j].first == 0 || toSort[j].first < 0.05 * toSort[0].first || j >= 8) {
+                // Only free "likely" start times
+                break;
+            }
+            for (int t = startTime; t < startTime + pb.duration(i, startTime); ++t) {
+                vector<int> interventionsPresent = pb.presence(t);
+                shuffle(interventionsPresent.begin(), interventionsPresent.end(), rgen);
+                for (int i : interventionsPresent) {
+                    if (!interventionSeen[i]) {
+                        order.push_back(i);
+                        interventionSeen[i] = 1;
+                    }
+                }
+            }
+        }
+    }
+    vector<int> remaining = getInterventionOrderRandom();
+    for (int i : remaining) {
+        if (!interventionSeen[i]) {
+            order.push_back(i);
+            interventionSeen[i] = 1;
+        }
+    }
+    return order;
+}
+
+vector<int> BsOptimizer::getRestartPriorityTimesteps() {
+    // Pick the timesteps in random order
+    // Restart all interventions that are present here
+    if (!solutionFound()) return getInterventionOrderRandom();
+    vector<int> timesteps = getTimestepOrderRandom();
+    vector<char> interventionSeen(pb.nbInterventions(), 0);
+    vector<int> order;
     for (int t : timesteps) {
         vector<int> interventionsPresent = pb.presence(t);
         shuffle(interventionsPresent.begin(), interventionsPresent.end(), rgen);
         for (int i : interventionsPresent) {
             if (!interventionSeen[i]) {
-                interventions.push_back(i);
+                order.push_back(i);
                 interventionSeen[i] = 1;
             }
         }
     }
-    vector<int> remaining = getRestartPriorityRandom();
+    vector<int> remaining = getInterventionOrderRandom();
     for (int i : remaining) {
         if (!interventionSeen[i]) {
-            interventions.push_back(i);
+            order.push_back(i);
             interventionSeen[i] = 1;
         }
     }
-    return interventions;
+    return order;
 }
 
 vector<int> BsOptimizer::getRestartPriorityRandom() {
-    vector<int> interventions;
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        interventions.push_back(i);
-    }
-    shuffle(interventions.begin(), interventions.end(), rgen);
-    return interventions;
+    return getInterventionOrderRandom();
 }
 
+vector<int> BsOptimizer::getInterventionOrderRandom() {
+    vector<int> order;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        order.push_back(i);
+    }
+    shuffle(order.begin(), order.end(), rgen);
+    return order;
+}
 
+vector<int> BsOptimizer::getTimestepOrderRandom() {
+    vector<int> order;
+    for (int i = 0; i < pb.nbTimesteps(); ++i) {
+        order.push_back(i);
+    }
+    shuffle(order.begin(), order.end(), rgen);
+    return order;
+}
