@@ -1,5 +1,6 @@
 
 #include "bs_optimizer.hpp"
+#include "measures.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -300,11 +301,11 @@ vector<int> rankingFromMeasure(const vector<double> &measure) {
 }
 
 vector<int> BsOptimizer::getSearchPriorityRiskRanking() {
-    return rankingFromMeasure(pb.measureSpanMeanRisk());
+    return rankingFromMeasure(measureSpanMeanRisk(pb));
 }
 
 vector<int> BsOptimizer::getSearchPriorityDemandRanking() {
-    return rankingFromMeasure(pb.measureAverageDemand());
+    return rankingFromMeasure(measureAverageDemand(pb));
 }
 
 vector<int> BsOptimizer::getSearchPriorityRandom() {

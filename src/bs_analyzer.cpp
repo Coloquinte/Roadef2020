@@ -1,5 +1,6 @@
 
 #include "bs_analyzer.hpp"
+#include "measures.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -29,14 +30,18 @@ void BsAnalyzer::run() {
         sortedInter.emplace_back(averageRank[i], i);
     }
     sort(sortedInter.begin(), sortedInter.end());
-    vector<double> spanMeanRisk = pb.measureSpanMeanRisk();
-    vector<double> averageDemand = pb.measureAverageDemand();
+    vector<double> spanMeanRisk = measureSpanMeanRisk(pb);
+    vector<double> averageDemand = measureAverageDemand(pb);
+    vector<double> averageDuration = measureAverageDuration(pb);
+    vector<double> validTimestepRatio = measureValidTimestepRatio(pb);
     for (auto p : sortedInter) {
         cout << "Intervention " << p.second
         << ": \taverage " << p.first
         << ", " << pb.maxStartTime(p.second) << " valid timesteps"
         << ", " << spanMeanRisk[p.second] << " mean risk span"
         << ", " << averageDemand[p.second] << " average demand"
+        << ", " << averageDuration[p.second] << " average duration"
+        << ", " << validTimestepRatio[p.second] << " validity"
         << endl;
     }
 }

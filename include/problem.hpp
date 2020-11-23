@@ -54,13 +54,14 @@ class Exclusions {
 };
 
 class Resources {
-  protected:
+  public:
     struct ResourceContribution {
         double amount;
         int time;
         int resource;
         ResourceContribution(double a, int t, int r) : amount(a), time(t), resource(r) {}
     };
+  protected:
     // By resource by time
     std::vector<std::vector<double> > lowerBound_;
     std::vector<std::vector<double> > upperBound_;
@@ -76,6 +77,10 @@ class Resources {
     int nbResources() const { return lowerBound_.size(); }
     int nbTimesteps() const { return lowerBound_.empty() ? 0 : lowerBound_.front().size(); }
     int maxStartTime(int intervention) const { return demands_[intervention].size(); }
+
+    const std::vector<std::vector<double> > &lowerBound() const { return lowerBound_; }
+    const std::vector<std::vector<double> > &upperBound() const { return upperBound_; }
+    const std::vector<std::vector<std::vector<ResourceContribution> > > &demands() const { return demands_; }
 
     double value() const { return currentValue_; }
 
@@ -97,6 +102,8 @@ class MeanRisk {
   public:
     int nbInterventions() const { return contribs_.size(); }
     int maxStartTime(int intervention) const { return contribs_[intervention].size(); }
+
+    const std::vector<std::vector<double> > &contribs() const { return contribs_; }
 
     double value() const { return currentValue_; }
 
@@ -187,10 +194,6 @@ class Problem {
     void unset(int intervention);
     void set(const std::vector<int> &startTimes);
     Objective objectiveIf(int intervention, int startTime, Objective threshold);
-
-    // Heuristic measures to take decisions
-    std::vector<double> measureSpanMeanRisk() const;
-    std::vector<double> measureAverageDemand() const;
 
     // Access to internal data
     const Exclusions &exclusions() const { return exclusions_; }
