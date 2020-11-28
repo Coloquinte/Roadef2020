@@ -272,12 +272,6 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 
 vector<int> BsOptimizer::getSearchPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
-    // TODO: improve priority measures
-    // * normalize
-    // * combine
-    // * introduce new measures
-    //   - number of valid timesteps
-    //   - average duration
     if (choice == 0) {
         return getSearchPriorityRiskRanking();
     }

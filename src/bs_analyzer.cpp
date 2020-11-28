@@ -15,25 +15,33 @@ BsAnalyzer::BsAnalyzer(Problem &pb, RoadefParams params) : pb(pb), params(params
 
 void BsAnalyzer::showStats() {
     cout << "Intervention    "
-         << "\tMeanRiskSpan\tMeanRiskSpanObj"
+         << "\tMeanRiskSpan"
+         << "\tMinRiskSpan"
+         << "\tMedianRiskSpan"
+         << "\tQuantileRiskSpan"
+         << "\tMaxRiskSpan"
          << "\tAverageDemand"
          << "\tAverageDuration"
-         << "\tValidity\tValidityObj"
+         << "\tValidity"
          << endl;
     vector<double> spanMeanRisk = measureSpanMeanRisk(pb);
+    vector<double> spanMinRisk = measureSpanMinRisk(pb);
+    vector<double> spanMedianRisk = measureSpanMedianRisk(pb);
+    vector<double> spanQuantileRisk = measureSpanQuantileRisk(pb);
+    vector<double> spanMaxRisk = measureSpanMaxRisk(pb);
     vector<double> averageDemand = measureAverageDemand(pb);
     vector<double> averageDuration = measureAverageDuration(pb);
     vector<double> validTimestepRatio = measureValidTimestepRatio(pb);
-    vector<double> spanMeanRiskObj = measureSpanMeanRisk(pb, pb.riskValue());
-    vector<double> validTimestepRatioObj = measureValidTimestepRatio(pb, pb.riskValue());
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         cout << pb.interventionNames()[i] << "  "
              << "\t" << spanMeanRisk[i]
-             << "\t" << spanMeanRiskObj[i]
+             << "\t" << spanMinRisk[i]
+             << "\t" << spanMedianRisk[i]
+             << "\t" << spanQuantileRisk[i]
+             << "\t" << spanMaxRisk[i]
              << "\t" << averageDemand[i]
              << "\t" << averageDuration[i]
              << "\t" << validTimestepRatio[i]
-             << "\t" << validTimestepRatioObj[i]
              << endl;
     }
 }
@@ -57,27 +65,35 @@ void BsAnalyzer::run() {
     }
     sort(sortedInter.begin(), sortedInter.end());
     vector<double> spanMeanRisk = measureSpanMeanRisk(pb);
+    vector<double> spanMinRisk = measureSpanMinRisk(pb);
+    vector<double> spanMedianRisk = measureSpanMedianRisk(pb);
+    vector<double> spanQuantileRisk = measureSpanQuantileRisk(pb);
+    vector<double> spanMaxRisk = measureSpanMaxRisk(pb);
     vector<double> averageDemand = measureAverageDemand(pb);
     vector<double> averageDuration = measureAverageDuration(pb);
     vector<double> validTimestepRatio = measureValidTimestepRatio(pb);
-    vector<double> spanMeanRiskObj = measureSpanMeanRisk(pb, pb.riskValue());
-    vector<double> validTimestepRatioObj = measureValidTimestepRatio(pb, pb.riskValue());
     cout << endl << endl << endl;
     cout << "Intervention    \tAveragePos"
-         << "\tMeanRiskSpan\tMeanRiskSpanObj"
+         << "\tMeanRiskSpan"
+         << "\tMinRiskSpan"
+         << "\tMedianRiskSpan"
+         << "\tQuantileRiskSpan"
+         << "\tMaxRiskSpan"
          << "\tAverageDemand"
          << "\tAverageDuration"
-         << "\tValidity\tValidityObj"
+         << "\tValidity"
          << endl;
     for (auto p : sortedInter) {
         cout << pb.interventionNames()[p.second]
              << "\t" << p.first
              << "\t" << spanMeanRisk[p.second]
-             << "\t" << spanMeanRiskObj[p.second]
+             << "\t" << spanMinRisk[p.second]
+             << "\t" << spanMedianRisk[p.second]
+             << "\t" << spanQuantileRisk[p.second]
+             << "\t" << spanMaxRisk[p.second]
              << "\t" << averageDemand[p.second]
              << "\t" << averageDuration[p.second]
              << "\t" << validTimestepRatio[p.second]
-             << "\t" << validTimestepRatioObj[p.second]
         << endl;
     }
     cout << endl << endl << endl;

@@ -59,6 +59,97 @@ vector<double> measureSpanMeanRisk(const Problem &pb, double objectiveBound) {
     return normalizeVector(ret);
 }
 
+vector<double> measureSpanMinRisk(const Problem &pb) {
+    return measureSpanMinRisk(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureSpanMinRisk(const Problem &pb, double objectiveBound) {
+    vector<double> ret;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        vector<double> vals;
+        for (const auto &contribs: pb.quantileRisk().contribs()[i]) {
+            double val = 0.0;
+            for (const auto &c : contribs) {
+                val += *min_element(c.risks.begin(), c.risks.end());
+            }
+            vals.push_back(val);
+        }
+        auto p = minmax_element(vals.begin(), vals.end());
+        ret.push_back(*p.second - *p.first);
+    }
+    return normalizeVector(ret);
+}
+
+vector<double> measureSpanMedianRisk(const Problem &pb) {
+    return measureSpanMedianRisk(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureSpanMedianRisk(const Problem &pb, double objectiveBound) {
+    vector<double> ret;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        vector<double> vals;
+        for (const auto &contribs: pb.quantileRisk().contribs()[i]) {
+            double val = 0.0;
+            for (const auto &c : contribs) {
+                vector<double> risks = c.risks;
+                int pos = ceil(0.5 * risks.size()) - 1;
+                std::nth_element(risks.begin(), risks.begin() + pos, risks.end());
+                val += risks[pos];
+            }
+            vals.push_back(val);
+        }
+        auto p = minmax_element(vals.begin(), vals.end());
+        ret.push_back(*p.second - *p.first);
+    }
+    return normalizeVector(ret);
+}
+
+vector<double> measureSpanQuantileRisk(const Problem &pb) {
+    return measureSpanQuantileRisk(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureSpanQuantileRisk(const Problem &pb, double objectiveBound) {
+    vector<double> ret;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        vector<double> vals;
+        for (const auto &contribs: pb.quantileRisk().contribs()[i]) {
+            double val = 0.0;
+            for (const auto &c : contribs) {
+                vector<double> risks = c.risks;
+                int pos = ceil(pb.quantile() * risks.size()) - 1;
+                std::nth_element(risks.begin(), risks.begin() + pos, risks.end());
+                val += risks[pos];
+            }
+            vals.push_back(val);
+        }
+        auto p = minmax_element(vals.begin(), vals.end());
+        ret.push_back(*p.second - *p.first);
+    }
+    return normalizeVector(ret);
+}
+
+
+vector<double> measureSpanMaxRisk(const Problem &pb) {
+    return measureSpanMaxRisk(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureSpanMaxRisk(const Problem &pb, double objectiveBound) {
+    vector<double> ret;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        vector<double> vals;
+        for (const auto &contribs: pb.quantileRisk().contribs()[i]) {
+            double val = 0.0;
+            for (const auto &c : contribs) {
+                val += *max_element(c.risks.begin(), c.risks.end());
+            }
+            vals.push_back(val);
+        }
+        auto p = minmax_element(vals.begin(), vals.end());
+        ret.push_back(*p.second - *p.first);
+    }
+    return normalizeVector(ret);
+}
+
 vector<double> measureAverageDemand(const Problem &pb) {
     return measureAverageDemand(pb, numeric_limits<double>::infinity());
 }

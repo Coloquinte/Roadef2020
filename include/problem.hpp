@@ -115,12 +115,14 @@ class MeanRisk {
 };
 
 class QuantileRisk {
-  protected:
+  public:
     struct RiskContribution {
         int time;
         std::vector<double> risks;
         RiskContribution(int t, const std::vector<double> &r) : time(t), risks(r) {}
     };
+
+  protected:
     // By time
     std::vector<int> nbScenarios_;
     std::vector<int> quantileScenarios_;
@@ -137,6 +139,8 @@ class QuantileRisk {
     int nbTimesteps() const { return nbScenarios_.size(); }
     int nbScenarios(int timestep) const { return nbScenarios_[timestep]; }
     int maxStartTime(int intervention) const { return contribs_[intervention].size(); }
+
+    const std::vector<std::vector<std::vector<RiskContribution> > > &contribs() const { return contribs_; }
 
     double value() const { return currentValue_; }
 
@@ -172,6 +176,8 @@ class Problem {
     int nbInterventions() const { return interventionNames_.size(); }
     int nbTimesteps() const { return nbTimesteps_; }
     int nbSeasons() const { return nbSeasons_; }
+    double quantile() const { return quantile_; }
+    double alpha() const { return alpha_; }
     int maxStartTime(int intervention) const { return maxStartTimes_[intervention]; }
 
     int exclusionValue() const { return exclusions_.value(); }
@@ -213,6 +219,8 @@ class Problem {
     // Problem data
     int nbTimesteps_;
     int nbSeasons_;
+    double quantile_;
+    double alpha_;
     std::vector<int> maxStartTimes_;
     Exclusions exclusions_;
     Resources resources_;

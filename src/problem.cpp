@@ -78,7 +78,9 @@ Problem Problem::read(istream &is) {
         pb.maxStartTimes_.push_back(readInt(interventionsJ[intName][TMAX_STR]));
     }
     double alpha = readDouble(js[ALPHA_STR]);
+    pb.alpha_ = alpha;
     double quantile = readDouble(js[QUANTILE_STR]);
+    pb.quantile_ = quantile;
     vector<int> scenarioNumbers = js[SCENARIO_NUMBER].get<vector<int> >();
 
     // Exclusions
