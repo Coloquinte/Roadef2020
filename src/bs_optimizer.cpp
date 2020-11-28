@@ -196,7 +196,7 @@ void BsOptimizer::expandBeam(int intervention, int beamWidth) {
         for (int t = 0; t < pb.maxStartTime(intervention); ++t) {
             // Insert in the sorted vector
             Problem::Objective threshold = beamTrials.empty() ? Problem::Objective() : beamTrials.back().obj;
-            NextBeamElement elt (i, t, pb.objectiveIf(intervention, t, threshold));
+            NextBeamElement elt (i, t, pb.objectiveIfSet(intervention, t, threshold));
             auto it = std::upper_bound(beamTrials.begin(), beamTrials.end(), elt);
             beamTrials.insert(it, elt);
             if (beamTrials.size() > beamWidth) {

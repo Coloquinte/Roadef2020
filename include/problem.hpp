@@ -49,6 +49,7 @@ class Exclusions {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
+    int objectiveIfSet(int intervention, int startTime);
 
     friend class Problem;
 };
@@ -87,6 +88,7 @@ class Resources {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
+    double objectiveIfSet(int intervention, int startTime) const;
 
     friend class Problem;
 };
@@ -110,6 +112,7 @@ class MeanRisk {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
+    double objectiveIfSet(int intervention, int startTime) const;
 
     friend class Problem;
 };
@@ -147,6 +150,7 @@ class QuantileRisk {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
+    double objectiveIfSet(int intervention, int startTime);
 
     friend class Problem;
 
@@ -199,7 +203,7 @@ class Problem {
     void set(int intervention, int startTime);
     void unset(int intervention);
     void set(const std::vector<int> &startTimes);
-    Objective objectiveIf(int intervention, int startTime, Objective threshold);
+    Objective objectiveIfSet(int intervention, int startTime, Objective threshold);
 
     // Access to internal data
     const Exclusions &exclusions() const { return exclusions_; }

@@ -273,6 +273,13 @@ void Exclusions::reset(const std::vector<int> &startTimes) {
     }
 }
 
+int Exclusions::objectiveIfSet(int intervention, int startTime) {
+    set(intervention, startTime);
+    int obj = value();
+    unset(intervention, startTime);
+    return obj;
+}
+
 void Exclusions::set(int intervention, int startTime) {
     if (startTime < 0) return;
     assert (intervention >= 0 && intervention < durations_.size());
@@ -321,6 +328,22 @@ void Resources::reset(const std::vector<int> &startTimes) {
     }
 }
 
+double Resources::objectiveIfSet(int intervention, int startTime) const {
+    assert (intervention >= 0 && intervention < demands_.size());
+    assert (startTime >= 0 && startTime < demands_[intervention].size());
+    double currentValue = currentValue_;
+    for (ResourceContribution c : demands_[intervention][startTime]) {
+        double lb = lowerBound_[c.resource][c.time];
+        double ub = upperBound_[c.resource][c.time];
+        double prevUsage = currentUsage_[c.resource][c.time];
+        double nextUsage = prevUsage + c.amount;
+        double prevCost = std::max(prevUsage - ub, 0.0) + std::max(lb - prevUsage, 0.0);
+        double nextCost = std::max(nextUsage - ub, 0.0) + std::max(lb - nextUsage, 0.0);
+        currentValue += (nextCost - prevCost);
+    }
+    return currentValue;
+}
+
 void Resources::set(int intervention, int startTime) {
     if (startTime < 0) return;
     assert (intervention >= 0 && intervention < demands_.size());
@@ -363,6 +386,13 @@ void MeanRisk::reset(const std::vector<int> &startTimes) {
     }
 }
 
+double MeanRisk::objectiveIfSet(int intervention, int startTime) const {
+    assert (intervention >= 0 && intervention < contribs_.size());
+    assert (startTime >= 0 && startTime < contribs_[intervention].size());
+    double currentValue = currentValue_;
+    return currentValue + contribs_[intervention][startTime];
+}
+
 void MeanRisk::set(int intervention, int startTime) {
     if (startTime < 0) return;
     assert (intervention >= 0 && intervention < contribs_.size());
@@ -392,6 +422,14 @@ void QuantileRisk::reset(const std::vector<int> &startTimes) {
         }
     }
 }
+
+double QuantileRisk::objectiveIfSet(int intervention, int startTime) {
+    set(intervention, startTime);
+    double obj = value();
+    unset(intervention, startTime);
+    return obj;
+}
+
 
 void QuantileRisk::set(int intervention, int startTime) {
     if (startTime < 0) return;
@@ -488,7 +526,7 @@ void Problem::set(const std::vector<int> &startTimes) {
     }
 }
 
-Problem::Objective Problem::objectiveIf(int intervention, int startTime, Objective threshold) {
+Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) {
     assert (startTimes_[intervention] == -1);
     meanRisk_.set(intervention, startTime);
     if (objective() >= threshold) {
