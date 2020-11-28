@@ -228,6 +228,7 @@ int BsOptimizer::getBeamWidthRandomUniform() {
 
 int BsOptimizer::getBeamWidthRandomGeom() {
     double mean = params.beamWidth;
+    if (mean <= 1.0 + 1e-8) return 1;
     return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
 }
 
@@ -241,7 +242,7 @@ int BsOptimizer::getBacktrackDepthFixed() {
 
 int BsOptimizer::getBacktrackDepthRandomUniform() {
     double mean = params.backtrackDepth;
-    if (mean <= 0) return 0;
+    if (mean <= 0.0 + 1e-8) return 0;
     return uniform_int_distribution<int>(0, 2*params.backtrackDepth)(rgen);
 }
 
@@ -265,6 +266,7 @@ int BsOptimizer::getRestartDepthRandomUniform() {
 
 int BsOptimizer::getRestartDepthRandomGeom() {
     double mean = params.restartDepth;
+    if (mean <= 1.0 + 1e-8) return 1;
     return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
 }
 
