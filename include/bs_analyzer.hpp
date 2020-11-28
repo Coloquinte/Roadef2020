@@ -12,6 +12,7 @@ class BsAnalyzer {
     void run();
     void runSearch();
     void runStep();
+    void showStats();
 
   private:
     Problem &pb;

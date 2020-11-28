@@ -13,8 +13,34 @@ BsAnalyzer::BsAnalyzer(Problem &pb, RoadefParams params) : pb(pb), params(params
     targetStartTimes = pb.startTimes();
 }
 
+void BsAnalyzer::showStats() {
+    cout << "Intervention    "
+         << "\tMeanRiskSpan\tMeanRiskSpanObj"
+         << "\tAverageDemand"
+         << "\tAverageDuration"
+         << "\tValidity\tValidityObj"
+         << endl;
+    vector<double> spanMeanRisk = measureSpanMeanRisk(pb);
+    vector<double> averageDemand = measureAverageDemand(pb);
+    vector<double> averageDuration = measureAverageDuration(pb);
+    vector<double> validTimestepRatio = measureValidTimestepRatio(pb);
+    vector<double> spanMeanRiskObj = measureSpanMeanRisk(pb, pb.riskValue());
+    vector<double> validTimestepRatioObj = measureValidTimestepRatio(pb, pb.riskValue());
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        cout << pb.interventionNames()[i] << "  "
+             << "\t" << spanMeanRisk[i]
+             << "\t" << spanMeanRiskObj[i]
+             << "\t" << averageDemand[i]
+             << "\t" << averageDuration[i]
+             << "\t" << validTimestepRatio[i]
+             << "\t" << validTimestepRatioObj[i]
+             << endl;
+    }
+}
+
 void BsAnalyzer::run() {
-    for (int i = 0; i < 10; ++i) {
+    showStats();
+    for (int i = 0; i < 100; ++i) {
         runSearch();
     }
     pb.reset(targetStartTimes);
@@ -34,20 +60,30 @@ void BsAnalyzer::run() {
     vector<double> averageDemand = measureAverageDemand(pb);
     vector<double> averageDuration = measureAverageDuration(pb);
     vector<double> validTimestepRatio = measureValidTimestepRatio(pb);
+    vector<double> spanMeanRiskObj = measureSpanMeanRisk(pb, pb.riskValue());
+    vector<double> validTimestepRatioObj = measureValidTimestepRatio(pb, pb.riskValue());
+    cout << endl << endl << endl;
+    cout << "Intervention    \tAveragePos"
+         << "\tMeanRiskSpan\tMeanRiskSpanObj"
+         << "\tAverageDemand"
+         << "\tAverageDuration"
+         << "\tValidity\tValidityObj"
+         << endl;
     for (auto p : sortedInter) {
-        cout << "Intervention " << p.second
-        << ": \taverage " << p.first
-        << ", " << pb.maxStartTime(p.second) << " valid timesteps"
-        << ", " << spanMeanRisk[p.second] << " mean risk span"
-        << ", " << averageDemand[p.second] << " average demand"
-        << ", " << averageDuration[p.second] << " average duration"
-        << ", " << validTimestepRatio[p.second] << " validity"
+        cout << pb.interventionNames()[p.second]
+             << "\t" << p.first
+             << "\t" << spanMeanRisk[p.second]
+             << "\t" << spanMeanRiskObj[p.second]
+             << "\t" << averageDemand[p.second]
+             << "\t" << averageDuration[p.second]
+             << "\t" << validTimestepRatio[p.second]
+             << "\t" << validTimestepRatioObj[p.second]
         << endl;
     }
+    cout << endl << endl << endl;
 }
 
 void BsAnalyzer::runSearch() {
-    //cout << "Looking for a search matching the target times" << endl;
     pb.reset();
     orders.emplace_back();
     for (int i = 0; i < pb.nbInterventions(); ++i) {
@@ -85,11 +121,6 @@ void BsAnalyzer::runStep() {
     assert (!bestInterventions.empty());
     shuffle(bestInterventions.begin(), bestInterventions.end(), rgen);
     int bestIntervention = bestInterventions.front();
-    //cout << "\tIntervention is " << bestIntervention
-    //     << ",\t rank " << bestRank
-    //     << ",\t out of " << bestInterventions.size() << " candidates"
-    //     << ",\t time " << targetStartTimes[bestIntervention]
-    //     << endl;
     pb.set(bestIntervention, targetStartTimes[bestIntervention]);
     orders.back().push_back(bestIntervention);
 }

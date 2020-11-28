@@ -2,19 +2,68 @@
 #include "measures.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <cmath>
 
 using namespace std;
 
-vector<double> measureSpanMeanRisk(const Problem &pb) {
+vector<double> normalizeVector(const vector<double> &vec) {
+    if (vec.empty()) return vec;
+    double squaredNorm = 0.0;
+    for (double v : vec) {
+        squaredNorm += v * v;
+    }
+    double factor = 1.0 / sqrt(squaredNorm / vec.size() + 1.0e-8);
     vector<double> ret;
-    for (int i = 0; i < pb.nbInterventions(); ++i) {
-        auto p = minmax_element(pb.meanRisk().contribs()[i].begin(), pb.meanRisk().contribs()[i].end());
-        ret.push_back(*p.second - *p.first);
+    for (double v : vec) {
+        ret.push_back(factor * v);
     }
     return ret;
 }
 
+vector<double> minPossibleRisk(const Problem &pb) {
+    vector<double> minRisks;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        double minRisk = *min_element(pb.meanRisk().contribs()[i].begin(), pb.meanRisk().contribs()[i].end());
+        minRisks.push_back(minRisk);
+    }
+    return minRisks;
+}
+
+vector<double> maxAllowedRisk(const Problem &pb, double objectiveBound) {
+    vector<double> minRisks = minPossibleRisk(pb);
+    double totalMinRisk = 0.0;
+    for (double r : minRisks) {
+        totalMinRisk += r;
+    }
+    vector<double> maxAllowed;
+    for (double r : minRisks) {
+        maxAllowed.push_back(objectiveBound + totalMinRisk - r);
+    }
+    return maxAllowed;
+}
+
+vector<double> measureSpanMeanRisk(const Problem &pb) {
+    return measureSpanMeanRisk(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureSpanMeanRisk(const Problem &pb, double objectiveBound) {
+    vector<double> maxAllowed = maxAllowedRisk(pb, objectiveBound);
+    vector<double> ret;
+    for (int i = 0; i < pb.nbInterventions(); ++i) {
+        auto p = minmax_element(pb.meanRisk().contribs()[i].begin(), pb.meanRisk().contribs()[i].end());
+        double maxVal = min(*p.second, maxAllowed[i]);
+        double minVal = *p.first;
+        ret.push_back(maxVal - minVal);
+    }
+    return normalizeVector(ret);
+}
+
 vector<double> measureAverageDemand(const Problem &pb) {
+    return measureAverageDemand(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureAverageDemand(const Problem &pb, double objectiveBound) {
     vector<double> averageCapacities(pb.nbResources(), 0.0);
     for (int i = 0; i < pb.nbResources(); ++i) {
         double cap = 0.0;
@@ -37,10 +86,14 @@ vector<double> measureAverageDemand(const Problem &pb) {
         }
         ret.push_back(normalizedDemand / pb.maxStartTime(i));
     }
-    return ret;
+    return normalizeVector(ret);
 }
 
 vector<double> measureAverageDuration(const Problem &pb) {
+    return measureAverageDuration(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureAverageDuration(const Problem &pb, double objectiveBound) {
     vector<double> ret;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         double sumDurations = 0.0;
@@ -49,11 +102,15 @@ vector<double> measureAverageDuration(const Problem &pb) {
         }
         ret.push_back(sumDurations / pb.maxStartTime(i));
     }
-    return ret;
+    return normalizeVector(ret);
 }
 
 vector<double> measureValidTimestepRatio(const Problem &pb) {
-    vector<vector<int> > timesteps = validTimesteps(pb);
+    return measureValidTimestepRatio(pb, numeric_limits<double>::infinity());
+}
+
+vector<double> measureValidTimestepRatio(const Problem &pb, double objectiveBound) {
+    vector<vector<int> > timesteps = validTimesteps(pb, objectiveBound);
     vector<double> ret;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         ret.push_back(timesteps[i].size() / (double) pb.maxStartTime(i));
@@ -62,6 +119,11 @@ vector<double> measureValidTimestepRatio(const Problem &pb) {
 }
 
 vector<vector<int> > validTimesteps(const Problem &pb) {
+    return validTimesteps(pb, numeric_limits<double>::infinity());
+}
+
+vector<vector<int> > validTimesteps(const Problem &pb, double objectiveBound) {
+    vector<double> maxAllowed = maxAllowedRisk(pb, objectiveBound);
     vector<vector<int> > ret;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         vector<int> validTimesteps;
@@ -70,6 +132,9 @@ vector<vector<int> > validTimesteps(const Problem &pb) {
                 if (demand.amount > pb.resources().upperBound()[demand.resource][demand.time] + 1.0e-5) {
                     continue;
                 }
+            }
+            if (pb.meanRisk().contribs()[i][startTime] > maxAllowed[i]) {
+                continue;
             }
             validTimesteps.push_back(startTime);
         }
