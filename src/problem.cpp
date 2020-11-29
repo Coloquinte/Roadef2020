@@ -162,6 +162,7 @@ Problem Problem::read(istream &is) {
                         int interventionTime = stoi(elt2.key())-1;
                         double usage = elt2.value().get<double>();
                         assert (interventionTime < pb.resources_.demands_[i].size());
+                        // TODO: check that all times are between startTime and startTime + delta
                         pb.resources_.demands_[i][interventionTime].emplace_back(usage, resourceTime, j);
                     }
                 }
@@ -183,6 +184,7 @@ Problem Problem::read(istream &is) {
                 double factor = alpha;
                 factor /= scenarioNumbers[t];
                 factor /= pb.nbTimesteps();
+                // TODO: check that all times are between startTime and startTime + delta
                 vector<double> riskArray = interventionRisk[to_string(t+1)][to_string(startTime+1)];
                 assert (riskArray.size() == scenarioNumbers[t]);
                 for (double r : riskArray) {
@@ -433,11 +435,21 @@ void QuantileRisk::reset(const std::vector<int> &startTimes) {
     }
 }
 
-double QuantileRisk::objectiveIfSet(int intervention, int startTime) {
-    set(intervention, startTime);
-    double obj = value();
-    unset(intervention, startTime);
-    return obj;
+double QuantileRisk::objectiveIfSet(int intervention, int startTime) const {
+    assert (intervention >= 0 && intervention < contribs_.size());
+    assert (startTime >= 0 && startTime < contribs_[intervention].size());
+    double currentValue = currentValue_;
+    for (const RiskContribution &c : contribs_[intervention][startTime]) {
+        assert (c.risks.size() == nbScenarios_[c.time]);
+        vector<double> risks = currentRisks_[c.time];
+        for (int i = 0; i < c.risks.size(); ++i) {
+            risks[i] += c.risks[i];
+        }
+        double oldExcess = currentExcesses_[c.time];
+        double newExcess = computeExcess(c.time, risks);
+        currentValue += newExcess - oldExcess;
+    }
+    return currentValue;
 }
 
 
@@ -450,8 +462,8 @@ void QuantileRisk::set(int intervention, int startTime) {
         for (int i = 0; i < c.risks.size(); ++i) {
             currentRisks_[c.time][i] += c.risks[i];
         }
+        updateExcess(c.time);
     }
-    updateExcesses(intervention, startTime);
 }
 
 void QuantileRisk::unset(int intervention, int startTime) {
@@ -463,32 +475,24 @@ void QuantileRisk::unset(int intervention, int startTime) {
         for (int i = 0; i < c.risks.size(); ++i) {
             currentRisks_[c.time][i] -= c.risks[i];
         }
+        updateExcess(c.time);
     }
-    updateExcesses(intervention, startTime);
 }
 
-void QuantileRisk::updateExcess(int time) {
-    double oldExcess = currentExcesses_[time];
-    std::vector<double> workingSet = currentRisks_[time];
+double QuantileRisk::computeExcess(int time, const vector<double> &risks) const {
+    std::vector<double> workingSet = risks;
     double mean = std::accumulate(workingSet.begin(), workingSet.end(), 0.0) / workingSet.size();
     int pos = quantileScenarios_[time];
     std::nth_element(workingSet.begin(), workingSet.begin() + pos, workingSet.end());
     double quantile = workingSet[pos];
-    double newExcess = std::max(quantile - mean, 0.0);
-    currentValue_ += newExcess - oldExcess;
-    currentExcesses_[time] = newExcess;
+    return std::max(quantile - mean, 0.0);
 }
 
-void QuantileRisk::updateExcesses(int intervention, int startTime) {
-    std::vector<int> times;
-    for (const RiskContribution &c : contribs_[intervention][startTime]) {
-        times.push_back(c.time);
-    }
-    std::sort(times.begin(), times.end());
-    assert (std::unique(times.begin(), times.end()) == times.end());
-    for (int t : times) {
-        updateExcess(t);
-    }
+void QuantileRisk::updateExcess(int time) {
+    double oldExcess = currentExcesses_[time];
+    double newExcess = computeExcess(time, currentRisks_[time]);
+    currentValue_ += newExcess - oldExcess;
+    currentExcesses_[time] = newExcess;
 }
 
 void Problem::reset(const std::vector<int> &startTimes) {
@@ -538,34 +542,11 @@ void Problem::set(const std::vector<int> &startTimes) {
 
 Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) {
     assert (startTimes_[intervention] == -1);
-    meanRisk_.set(intervention, startTime);
-    if (objective() >= threshold) {
-        meanRisk_.unset(intervention, startTime);
-        return Objective();
-    }
-    resources_.set(intervention, startTime);
-    if (objective() >= threshold) {
-        meanRisk_.unset(intervention, startTime);
-        resources_.unset(intervention, startTime);
-        return Objective();
-    }
-    exclusions_.set(intervention, startTime);
-    if (objective() >= threshold) {
-        meanRisk_.unset(intervention, startTime);
-        resources_.unset(intervention, startTime);
-        exclusions_.unset(intervention, startTime);
-        return Objective();
-    }
-    quantileRisk_.set(intervention, startTime);
-
-    Objective ret = objective();
-
-    meanRisk_.unset(intervention, startTime);
-    resources_.unset(intervention, startTime);
-    exclusions_.unset(intervention, startTime);
-    quantileRisk_.unset(intervention, startTime);
-
-    return ret;
+    double resourceObj = resources_.objectiveIfSet(intervention, startTime);
+    int exclusionObj = exclusions_.objectiveIfSet(intervention, startTime);
+    double meanRiskObj = meanRisk_.objectiveIfSet(intervention, startTime);
+    double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);
+    return Objective(exclusionObj, resourceObj, meanRiskObj + quantileRiskObj);
 }
 
 bool Problem::validSolution() const {

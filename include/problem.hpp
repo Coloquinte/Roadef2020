@@ -150,13 +150,13 @@ class QuantileRisk {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
-    double objectiveIfSet(int intervention, int startTime);
+    double objectiveIfSet(int intervention, int startTime) const;
 
     friend class Problem;
 
   private:
+    double computeExcess(int time, const std::vector<double> &risks) const;
     void updateExcess(int time);
-    void updateExcesses(int intervention, int startTime);
 };
 
 
