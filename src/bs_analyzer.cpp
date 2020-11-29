@@ -48,6 +48,10 @@ void BsAnalyzer::showStats() {
 
 void BsAnalyzer::run() {
     showStats();
+    branchingAnalysis();
+}
+
+void BsAnalyzer::branchingAnalysis() {
     for (int i = 0; i < 100; ++i) {
         runSearch();
     }

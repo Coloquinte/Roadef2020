@@ -273,11 +273,21 @@ void Exclusions::reset(const std::vector<int> &startTimes) {
     }
 }
 
-int Exclusions::objectiveIfSet(int intervention, int startTime) {
-    set(intervention, startTime);
-    int obj = value();
-    unset(intervention, startTime);
-    return obj;
+int Exclusions::objectiveIfSet(int intervention, int startTime) const {
+    assert (intervention >= 0 && intervention < durations_.size());
+    assert (startTime >= 0 && startTime < durations_[intervention].size());
+    int currentValue = currentValue_;
+    for (int t = startTime; t < startTime + durations_[intervention][startTime]; ++t) {
+        assert (t < nbTimesteps());
+        const std::vector<int> &interdictions = seasonInterdictions_[seasons_[t]][intervention];
+        const std::vector<int> &present = currentPresence_[t];
+        for (int other : present) {
+            bool forbidden = std::find(interdictions.begin(), interdictions.end(), other) != interdictions.end();
+            if (forbidden)
+                currentValue += 1;
+        }
+    }
+    return currentValue;
 }
 
 void Exclusions::set(int intervention, int startTime) {
@@ -475,7 +485,7 @@ void QuantileRisk::updateExcesses(int intervention, int startTime) {
         times.push_back(c.time);
     }
     std::sort(times.begin(), times.end());
-    times.erase(std::unique(times.begin(), times.end()), times.end());
+    assert (std::unique(times.begin(), times.end()) == times.end());
     for (int t : times) {
         updateExcess(t);
     }

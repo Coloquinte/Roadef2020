@@ -49,7 +49,7 @@ class Exclusions {
     void set(int intervention, int startTime);
     void unset(int intervention, int startTime);
     void reset(const std::vector<int> &startTimes);
-    int objectiveIfSet(int intervention, int startTime);
+    int objectiveIfSet(int intervention, int startTime) const;
 
     friend class Problem;
 };

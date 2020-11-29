@@ -13,6 +13,7 @@ class BsAnalyzer {
     void runSearch();
     void runStep();
     void showStats();
+    void branchingAnalysis();
 
   private:
     Problem &pb;
