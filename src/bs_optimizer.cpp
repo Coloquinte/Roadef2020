@@ -27,19 +27,20 @@ void BsOptimizer::run() {
         int restartDepth = getRestartDepth();
         restartBeam(restartDepth);
         int beamWidth = getBeamWidth();
-        runBeam(beamWidth);
+        int backtrackDepth = getBacktrackDepth();
+        runBeam(beamWidth, backtrackDepth);
         pb.reset(bestStartTimes);
     }
     logSearchEnd();
 }
 
-void BsOptimizer::runBeam(int beamWidth) {
+void BsOptimizer::runBeam(int beamWidth, int backtrackDepth) {
     assert (!beam.empty());
     logBeamStart();
     vector<int> interventions = getSearchPriority();
     for (int i : interventions) {
         if (!alreadyAssigned(i)) {
-            backtrackBeam(beamWidth, getBacktrackDepth());
+            backtrackBeam(beamWidth, backtrackDepth);
             expandBeam(i, beamWidth);
         }
     }
@@ -47,17 +48,19 @@ void BsOptimizer::runBeam(int beamWidth) {
     recordSolution();
 }
 
-void BsOptimizer::backtrackBeam(int beamWidth, int depth) {
+void BsOptimizer::backtrackBeam(int beamWidth, int backtrackDepth) {
     assert (!beam.empty());
-    int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
-    if (beam[0][intervention] == -1) return;
-    for (vector<int> &elt : beam) {
-        elt[intervention] = -1;
+    for (int i = 0; i < backtrackDepth; ++i) {
+        int intervention = uniform_int_distribution<int>(0, pb.nbInterventions()-1)(rgen);
+        if (beam[0][intervention] == -1) continue;
+        for (vector<int> &elt : beam) {
+            elt[intervention] = -1;
+        }
+        // Avoid creating duplicates
+        sort(beam.begin(), beam.end());
+        beam.erase(unique(beam.begin(), beam.end()), beam.end());
+        expandBeam(intervention, beamWidth);
     }
-    // Avoid creating duplicates
-    sort(beam.begin(), beam.end());
-    beam.erase(unique(beam.begin(), beam.end()), beam.end());
-    expandBeam(intervention, beamWidth);
 }
 
 void BsOptimizer::logBeamStart() const {
@@ -242,7 +245,7 @@ int BsOptimizer::getBacktrackDepthFixed() {
 
 int BsOptimizer::getBacktrackDepthRandomUniform() {
     double mean = params.backtrackDepth;
-    if (mean <= 0.0 + 1e-8) return 0;
+    if (mean <= 0.5 - 0.000001) return 0;
     return uniform_int_distribution<int>(0, 2*params.backtrackDepth)(rgen);
 }
 
@@ -273,13 +276,13 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 vector<int> BsOptimizer::getSearchPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
     if (choice == 0) {
-        return getSearchPriorityRiskRanking();
+        return getSearchPriorityRandom();
     }
     else if (choice == 1) {
         return getSearchPriorityDemandRanking();
     }
     else {
-        return getSearchPriorityRandom();
+        return getSearchPriorityRiskRanking();
     }
 }
 
@@ -311,13 +314,13 @@ vector<int> BsOptimizer::getSearchPriorityRandom() {
 vector<int> BsOptimizer::getRestartPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
     if (choice == 0) {
-        return getRestartPriorityTimesteps();
+        return getRestartPriorityRandom();
     }
     else if (choice == 1) {
         return getRestartPriorityConflicts();
     }
     else {
-        return getRestartPriorityRandom();
+        return getRestartPriorityTimesteps();
     }
 }
 
@@ -328,7 +331,10 @@ vector<int> BsOptimizer::getRestartPriorityConflicts() {
     vector<int> interventions = getInterventionOrderRandom();
     vector<char> interventionSeen(pb.nbInterventions(), 0);
     vector<int> order;
-    for (int i : interventions) {
+    vector<int> toVisit = interventions;
+    while (!toVisit.empty()) {
+        int i = toVisit.back();
+        toVisit.pop_back();
         if (interventionSeen[i]) {
             continue;
         }
@@ -349,14 +355,16 @@ vector<int> BsOptimizer::getRestartPriorityConflicts() {
                 // Only free "likely" start times
                 break;
             }
+            vector<int> interventionsPresent;
             for (int t = startTime; t < startTime + pb.duration(i, startTime); ++t) {
-                vector<int> interventionsPresent = pb.presence(t);
-                shuffle(interventionsPresent.begin(), interventionsPresent.end(), rgen);
-                for (int i : interventionsPresent) {
-                    if (!interventionSeen[i]) {
-                        order.push_back(i);
-                        interventionSeen[i] = 1;
-                    }
+                for (int p : pb.presence(t)) {
+                    interventionsPresent.push_back(p);
+                }
+            }
+            shuffle(interventionsPresent.begin(), interventionsPresent.end(), rgen);
+            for (int k : interventionsPresent) {
+                if (!interventionSeen[k]) {
+                    toVisit.push_back(k);
                 }
             }
         }

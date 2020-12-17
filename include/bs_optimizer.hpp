@@ -40,8 +40,8 @@ class BsOptimizer {
     std::vector<int> getTimestepOrderRandom();
 
     // Beam exploration
-    void runBeam(int beamWidth);
-    void backtrackBeam(int beamWidth, int depth);
+    void runBeam(int beamWidth, int backtrackDepth);
+    void backtrackBeam(int beamWidth, int backtrackDepth);
     void expandBeam(int intervention, int beamWidth);
     void recordSolution();
 
