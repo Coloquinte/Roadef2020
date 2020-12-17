@@ -542,11 +542,25 @@ void Problem::set(const std::vector<int> &startTimes) {
 
 Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) {
     assert (startTimes_[intervention] == -1);
-    double resourceObj = resources_.objectiveIfSet(intervention, startTime);
+    Objective ret = Objective::Min();
     int exclusionObj = exclusions_.objectiveIfSet(intervention, startTime);
+    ret.exclusion = exclusionObj;
+    // Shortcut worse exclusion
+    if (threshold.betterThan(ret))
+        return ret;
+    double resourceObj = resources_.objectiveIfSet(intervention, startTime);
+    ret.resource = resourceObj;
+    // Shortcut worse resource
+    if (threshold.betterThan(ret))
+        return ret;
     double meanRiskObj = meanRisk_.objectiveIfSet(intervention, startTime);
+    ret.risk = meanRiskObj;
+    // Shortcut worse min risk
+    if (threshold.betterThan(ret))
+        return ret;
     double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);
-    return Objective(exclusionObj, resourceObj, meanRiskObj + quantileRiskObj);
+    ret.risk = meanRiskObj + quantileRiskObj;
+    return ret;
 }
 
 bool Problem::validSolution() const {

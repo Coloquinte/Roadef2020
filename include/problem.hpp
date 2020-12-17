@@ -246,6 +246,9 @@ struct Problem::Objective {
         , resource(resource)
         , risk(risk) {}
 
+    static Objective Min() {
+        return Objective(0, 0.0, 0.0);
+    }
     int compare(const Objective &o) const {
         if (exclusion != o.exclusion)
             return exclusion < o.exclusion ? -1 : 1;
