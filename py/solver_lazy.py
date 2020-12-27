@@ -252,6 +252,7 @@ class Problem:
         m.minimize(m.mean_risk_objective + m.excess_risk_objective)
 
         # Additional useful constraints for better bounds
+        self.add_simple_root_constraints()
         if args.root_constraints:
             self.add_root_constraints()
 
@@ -290,15 +291,30 @@ class Problem:
                     expr = presence[i1][t] + presence[i2][t]
                     m.add_constraint(m.sum(expr) <= 1)
 
+    def add_simple_root_constraints(self):
+        for i in range(self.nb_timesteps):
+            expr = [self.quantile_risk_dec[i]]
+            for intervention in range(self.nb_interventions):
+                for tp in self.quantile_risk.risk_origin[i][intervention]:
+                    expr.append(- tp.min * self.intervention_decisions[intervention][tp.time])
+                self.model.add_constraint(self.model.sum(expr) >= 0)
+
     def add_root_constraints(self):
         for i in range(self.nb_timesteps):
             print(f"Adding root constraints for timestep {i}")
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
+            subsets_seen = set()
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
-                    expr = [self.quantile_risk_dec[i]]
+                    if tp.max - tp.min <= 1.0e-7:
+                        # Already handled by the simple root constraints
+                        continue
                     subset = self.compute_quantile_subset(tp.risk, i)
+                    if tuple(subset) in subsets_seen:
+                        continue
+                    subsets_seen.add(tuple(subset))
+                    expr = [self.quantile_risk_dec[i]]
                     for intervention2 in range(self.nb_interventions):
                         for tp2 in self.quantile_risk.risk_origin[i][intervention2]:
                             contrib = tp2.risk[subset].min()
@@ -361,7 +377,13 @@ class Problem:
         """
         quantile_risk = self.get_quantile_risk(time, intervention_times)
         decisions = [it for it in intervention_times]
-        coefs = [-min(self.quantile_risk.max_risk_from_times[time][it], quantile_risk) for it in intervention_times]
+        coefs = []
+        for it in intervention_times:
+            contrib = self.quantile_risk.max_risk_from_times[time][it]
+            if not extend:
+                # Only safe in this case
+                contrib = min(contrib, quantile_risk)
+            coefs.append(-contrib)
         rhs = quantile_risk + sum(coefs)
         if extend:
             # Add other interventions and times as required
@@ -377,9 +399,16 @@ class Problem:
         Get a subset lazy constraint for these intervention times.
         """
         subset = self.get_quantile_risk_subset(time, intervention_times)
+        quantile_risk = self.get_quantile_risk(time, intervention_times)
         decisions = [it for it in intervention_times]
-        coefs = [self.quantile_risk.risk_from_times[time][it][subset].min() for it in intervention_times]
-        rhs = 0.0
+        coefs = []
+        for it in intervention_times:
+            contrib = self.quantile_risk.risk_from_times[time][it][subset].max()
+            if not extend:
+                # Only safe in this case
+                contrib = min(contrib, quantile_risk)
+            coefs.append(-contrib)
+        rhs = quantile_risk + sum(coefs)
         if extend:
             # Add other interventions and times as required
             interventions_used = set(intervention_times)
@@ -456,6 +485,15 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                 
                 rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=False)
                 self.add_constraint(time, rhs, coefs, decisions)
+                if pb.args.subset_constraints:
+                    rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=False)
+                    self.add_constraint(time, rhs, coefs, decisions)
+                if random.random() < pb.args.extend_frequency:
+                    rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
+                    self.add_constraint(time, rhs, coefs, decisions)
+                if pb.args.subset_constraints and random.random() < pb.args.extend_frequency:
+                    rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=True)
+                    self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
         if tot_mean_risk + tot_excess_risk < self.best_value:
             self.best_value = tot_mean_risk + tot_excess_risk
@@ -488,6 +526,8 @@ if __name__ == '__main__':
     parser.add_argument("--log_file", help="Log file for the cuts and lazy constraints")
     parser.add_argument("--full", help="Use a complete model without lazy constraints", action='store_true')
     parser.add_argument("--root_constraints", help="Start with more constraints (for all intervention, add a cut corresponding to its subset)", action='store_true')
+    parser.add_argument("--subset_constraints", help="Use subset lazy constraints", action='store_true')
+    parser.add_argument("--extend_frequency", help="Frequency of using constraint extension", type=float, default=0.2)
     parser.add_argument("--seed", help="Random seed", type=int, default=0)
     args = parser.parse_args()
     random.seed(args.seed)
