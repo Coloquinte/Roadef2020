@@ -509,6 +509,9 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
 
 
 def run(args):
+    if args.name:
+        print("J3")
+        sys.exit(0)
     instance = common.read_json(args.instance_file)
     if args.reoptimize:
         common.read_solution_from_txt(instance, args.solution_file)
@@ -519,16 +522,32 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("instance_file", help="Instance file")
-    parser.add_argument("solution_file", help="Solution file to write")
-    parser.add_argument("--time", help="Time limit", type=int)
-    parser.add_argument("--reoptimize", help="Improve an existing solution", action='store_true')
-    parser.add_argument("--log_file", help="Log file for the cuts and lazy constraints")
+    parser.add_argument("--instance", "-p", help="Instance file name (.json)", dest="instance_file")
+    parser.add_argument("--output", "-o", help="Output file name (.txt)", dest="solution_file")
+    parser.add_argument("--seed", "-s", help="Random seed", type=int, default=0)
+    parser.add_argument("--time-limit", "-t", help="Time limit", type=int, dest="time")
+    parser.add_argument("-name", help="Print the team's name (J3)", action='store_true')
+
+    parser.add_argument("--log-file", help="Log file for the cuts and lazy constraints", dest="log_file")
+    parser.add_argument("--warm-start", help="Improve an existing solution", action='store_true', dest="reoptimize")
     parser.add_argument("--full", help="Use a complete model without lazy constraints", action='store_true')
-    parser.add_argument("--root_constraints", help="Start with more constraints (for all intervention, add a cut corresponding to its subset)", action='store_true')
-    parser.add_argument("--subset_constraints", help="Use subset lazy constraints", action='store_true')
-    parser.add_argument("--extend_frequency", help="Frequency of using constraint extension", type=float, default=0.2)
-    parser.add_argument("--seed", help="Random seed", type=int, default=0)
+
+    g1 = parser.add_mutually_exclusive_group()
+    g1.add_argument('--root-constraints', action='store_true', dest="root_constraints", help="Enable additional root constraints")
+    g1.add_argument('--no-root-constraints', action='store_false', dest="root_constraints", help="Disable additional root constraints")
+
+    g2 = parser.add_mutually_exclusive_group()
+    g2.add_argument('--subset-constraints', action='store_true', dest="subset_constraints", help="Enable subset lazy constraints")
+    g2.add_argument('--no-subset-constraints', action='store_false', dest="subset_constraints", help="Enable subset lazy constraints")
+
+    parser.set_defaults(root_constraints=True, subset_constraints=True)
+
+    parser.add_argument("--extend-frequency", help="Frequency of using constraint extension", type=float, default=0.2, dest="extend_frequency")
+
     args = parser.parse_args()
+    if not args.name and not args.instance_file:
+        parser.error("An instance file is required")
+    if not args.name and not args.solution_file:
+        parser.error("An output file is required")
     random.seed(args.seed)
     run(args)
