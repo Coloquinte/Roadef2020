@@ -269,7 +269,7 @@ int BsOptimizer::getBacktrackDepthRandomGeom() {
 }
 
 int BsOptimizer::getRestartDepth() {
-    int restartDepth = getRestartDepthRandomGeom();
+    int restartDepth = getRestartDepthMixed();
     choiceRestartDepth = restartDepth;
     return restartDepth;
 }
@@ -280,6 +280,20 @@ int BsOptimizer::getRestartDepthFixed() {
 
 int BsOptimizer::getRestartDepthRandomUniform() {
     return uniform_int_distribution<int>(1, 2*params.restartDepth-1)(rgen);
+}
+
+int BsOptimizer::getRestartDepthMixed() {
+    // Mix small backtracks (size specified) and large restarts (restart about half)
+    double smallMean = params.restartDepth;
+    double largeMean = pb.nbInterventions() / 2.0;
+    double ratio = 2.0; // Spend 2x more times on small
+    double probaSmall = ratio * largeMean / (smallMean + ratio * largeMean);
+    double mean = largeMean;
+    if (uniform_real_distribution<double>()(rgen) < probaSmall) {
+        mean = smallMean;
+    }
+    if (mean <= 1.0 + 1e-8) return 1;
+    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
 }
 
 int BsOptimizer::getRestartDepthRandomGeom() {

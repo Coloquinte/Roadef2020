@@ -39,7 +39,7 @@ po::options_description getOptions() {
   desc.add_options()("backtrack-depth", po::value<double>()->default_value(0.5),
                      "Depth used to backtrack during search");
 
-  desc.add_options()("restart-depth", po::value<double>()->default_value(50.0),
+  desc.add_options()("restart-depth", po::value<double>()->default_value(10.0),
                      "Depth used to backtrack during restarts");
 
   desc.add_options()("warm-start", "Warm-start from the solution file");

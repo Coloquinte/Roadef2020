@@ -27,6 +27,7 @@ class BsOptimizer {
     int getRestartDepth();
     int getRestartDepthFixed();
     int getRestartDepthRandomUniform();
+    int getRestartDepthMixed();
     int getRestartDepthRandomGeom();
     std::vector<int> getSearchPriority();
     std::vector<int> getSearchPriorityDemandRanking();
