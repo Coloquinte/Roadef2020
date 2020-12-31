@@ -380,9 +380,7 @@ class Problem:
         coefs = []
         for it in intervention_times:
             contrib = self.quantile_risk.max_risk_from_times[time][it]
-            if not extend:
-                # Only safe in this case
-                contrib = min(contrib, quantile_risk)
+            contrib = min(contrib, quantile_risk)
             coefs.append(-contrib)
         rhs = quantile_risk + sum(coefs)
         if extend:
@@ -483,13 +481,10 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                           f"(value {quantile_risk:.4f}, target {model_quantile_risk:.4f}) "
                           f"for {intervention_times}", file=pb.log_file)
                 
-                rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=False)
+                rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
                 self.add_constraint(time, rhs, coefs, decisions)
                 if pb.args.subset_constraints:
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=False)
-                    self.add_constraint(time, rhs, coefs, decisions)
-                if random.random() < pb.args.extend_frequency:
-                    rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 if pb.args.subset_constraints and random.random() < pb.args.extend_frequency:
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=True)
