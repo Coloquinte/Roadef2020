@@ -28,7 +28,7 @@ po::options_description getOptions() {
                      "Time limit");
 
   desc.add_options()("verbosity,v", po::value<int>()->default_value(2),
-                     "Verbosity level\n    1 -> basic stats\n    2 -> new solutions\n    3 -> search process");
+                     "Verbosity level\n    1 -> basic stats\n    2 -> new solutions\n    3 -> parameters\n    4 -> search process");
 
   desc.add_options()("name", "Print the team's name (J3)");
   desc.add_options()("help,h", "Print this help");
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
   opti.run();
 
   if (params.verbosity >= 1) {
-    cout << "Solution with "
+    cout << "Final solution with "
          << pb.exclusionValue() << " exclusions, "
          << fixed << setprecision(2) << pb.resourceValue() << " overflow, "
          << fixed << setprecision(5) << pb.riskValue() << " risk "

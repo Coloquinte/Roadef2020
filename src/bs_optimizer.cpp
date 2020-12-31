@@ -29,6 +29,7 @@ void BsOptimizer::run() {
         int beamWidth = getBeamWidth();
         int backtrackDepth = getBacktrackDepth();
         runBeam(beamWidth, backtrackDepth);
+        recordSolution();
         pb.reset(bestStartTimes);
     }
     logSearchEnd();
@@ -45,7 +46,6 @@ void BsOptimizer::runBeam(int beamWidth, int backtrackDepth) {
         }
     }
     logBeamEnd();
-    recordSolution();
 }
 
 void BsOptimizer::backtrackBeam(int beamWidth, int backtrackDepth) {
@@ -65,7 +65,7 @@ void BsOptimizer::backtrackBeam(int beamWidth, int backtrackDepth) {
 
 void BsOptimizer::logBeamStart() const {
     assert (!beam.empty());
-    if (params.verbosity < 3) return;
+    if (params.verbosity < 4) return;
     int cnt = 0;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         if (beam[0][i] == -1) {
@@ -77,7 +77,7 @@ void BsOptimizer::logBeamStart() const {
 
 void BsOptimizer::logBeamEnd() const {
     assert (!beam.empty());
-    if (params.verbosity < 3) return;
+    if (params.verbosity < 4) return;
     cout << "Beam run done" << endl;
     vector<int> differences;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
@@ -94,7 +94,7 @@ void BsOptimizer::logBeamEnd() const {
 }
 
 void BsOptimizer::logSearchEnd() const {
-    if (params.verbosity < 3) return;
+    if (params.verbosity < 4) return;
     for (int i = 0; i < pb.nbInterventions(); ++i) {
         size_t totCount = 0;
         for (size_t count : assignmentCounts[i]) {
@@ -150,6 +150,15 @@ void BsOptimizer::recordSolution() {
                      << fixed << setprecision(5) << pb.riskValue() << " risk "
                      << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
                      << fixed << setprecision(1) << ", elapsed " << elapsed.count() << "s"
+                     << endl;
+            }
+            if (params.verbosity >= 3) {
+                cout << "\tParameters were: "
+                     << "restart depth: " << choiceRestartDepth << ", "
+                     << "backtrack depth: " << choiceBacktrackDepth << ", "
+                     << "beam width: " << choiceBeamWidth << ", "
+                     << "restart priority: " << choiceRestartPriority << ", "
+                     << "search priority: " << choiceSearchPriority
                      << endl;
             }
         }
@@ -218,7 +227,9 @@ void BsOptimizer::expandBeam(int intervention, int beamWidth) {
 }
 
 int BsOptimizer::getBeamWidth() {
-    return getBeamWidthRandomGeom();
+    int beamWidth = getBeamWidthRandomGeom();
+    choiceBeamWidth = beamWidth;
+    return beamWidth;
 }
 
 int BsOptimizer::getBeamWidthFixed() {
@@ -232,11 +243,13 @@ int BsOptimizer::getBeamWidthRandomUniform() {
 int BsOptimizer::getBeamWidthRandomGeom() {
     double mean = params.beamWidth;
     if (mean <= 1.0 + 1e-8) return 1;
-    return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
+    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
 }
 
 int BsOptimizer::getBacktrackDepth() {
-    return getBacktrackDepthRandomGeom();
+    int backtrackDepth = getBacktrackDepthRandomGeom();
+    choiceBacktrackDepth = backtrackDepth;
+    return backtrackDepth;
 }
 
 int BsOptimizer::getBacktrackDepthFixed() {
@@ -245,18 +258,20 @@ int BsOptimizer::getBacktrackDepthFixed() {
 
 int BsOptimizer::getBacktrackDepthRandomUniform() {
     double mean = params.backtrackDepth;
-    if (mean <= 0.5 - 0.000001) return 0;
+    if (mean < 0.5) return 0;
     return uniform_int_distribution<int>(0, 2*params.backtrackDepth)(rgen);
 }
 
 int BsOptimizer::getBacktrackDepthRandomGeom() {
     double mean = params.backtrackDepth;
-    if (mean <= 0) return 0;
-    return geometric_distribution<int>(1.0/mean)(rgen);
+    if (mean <= 0.00001) return 0;
+    return geometric_distribution<int>(1.0/(1.0+mean))(rgen);
 }
 
 int BsOptimizer::getRestartDepth() {
-    return getRestartDepthRandomGeom();
+    int restartDepth = getRestartDepthRandomGeom();
+    choiceRestartDepth = restartDepth;
+    return restartDepth;
 }
 
 int BsOptimizer::getRestartDepthFixed() {
@@ -270,11 +285,12 @@ int BsOptimizer::getRestartDepthRandomUniform() {
 int BsOptimizer::getRestartDepthRandomGeom() {
     double mean = params.restartDepth;
     if (mean <= 1.0 + 1e-8) return 1;
-    return 1 + geometric_distribution<int>(1.0/(mean-1.0))(rgen);
+    return 1 + geometric_distribution<int>(1.0/mean)(rgen);
 }
 
 vector<int> BsOptimizer::getSearchPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    choiceSearchPriority = choice;
     if (choice == 0) {
         return getSearchPriorityRandom();
     }
@@ -313,6 +329,7 @@ vector<int> BsOptimizer::getSearchPriorityRandom() {
 
 vector<int> BsOptimizer::getRestartPriority() {
     int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    choiceRestartPriority = choice;
     if (choice == 0) {
         return getRestartPriorityRandom();
     }

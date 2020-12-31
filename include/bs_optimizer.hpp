@@ -64,5 +64,12 @@ class BsOptimizer {
 
     Rgen rgen;
     RoadefParams params;
+
+    // Setup for the current search
+    int choiceSearchPriority;
+    int choiceRestartPriority;
+    int choiceBeamWidth;
+    int choiceRestartDepth;
+    int choiceBacktrackDepth;
 };
 
