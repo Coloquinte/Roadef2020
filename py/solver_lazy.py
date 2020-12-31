@@ -15,11 +15,12 @@ import docplex.mp
 
 
 from docplex.mp.model import Model
-from cplex.callbacks import LazyConstraintCallback
+from cplex.callbacks import LazyConstraintCallback, UserCutCallback
 from docplex.mp.callbacks.cb_mixin import ConstraintCallbackMixin
 
 import common
 import checker
+import constraint_gen
 
 RESOURCES_STR = 'Resources'
 SEASONS_STR = 'Seasons'
@@ -272,6 +273,9 @@ class Problem:
         if not args.full:
             lazyct_cb = m.register_callback(QuantileLazyCallback)
             lazyct_cb.register_pb(self)
+            if args.root_cuts:
+                cut_cb = m.register_callback(QuantileCutCallback)
+                cut_cb.register_pb(self)
 
         # Case where a solution is already given
         if args.reoptimize:
@@ -486,7 +490,6 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                 if pb.args.subset_constraints:
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=False)
                     self.add_constraint(time, rhs, coefs, decisions)
-                if pb.args.subset_constraints and random.random() < pb.args.extend_frequency:
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
@@ -501,6 +504,65 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                   f"(mean risk {tot_mean_risk:.2f}, excess risk {tot_excess_risk:.2f}), "
                   f"in {call_end_time-call_start_time:.2f}s", file=pb.log_file)
             pb.log_file.flush()
+
+
+class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
+    def __init__(self, env):
+        UserCutCallback.__init__(self, env)
+        ConstraintCallbackMixin.__init__(self)
+        self.pb = None
+        self.nb_calls = 0
+        self.nb_constraints = 0
+
+    def register_pb(self, pb):
+        self.pb = pb
+
+    def add_constraint(self, time, rhs, coefs, decisions):
+        pb = self.pb
+        var_decisions = [pb.intervention_decisions[it[0]][it[1]].index for it in decisions]
+        coefs = list(coefs)
+        var_decisions.append(pb.quantile_risk_dec[time].index)
+        coefs.append(1.0)
+        self.add([var_decisions, coefs], "G", rhs)
+        self.nb_constraints += 1
+
+    def __call__(self):
+        if self.get_node_ID() != 0:
+            return
+        pb = self.pb
+        self.nb_calls += 1
+        if pb.log_file is not None:
+            call_start_time = time_mod.perf_counter()
+        intervention_values = [
+            self.get_values([d.index for d in pb.intervention_decisions[i]])
+            for i in range(pb.nb_interventions)]
+        values = dict()
+        for i in range(pb.nb_interventions):
+            values[i] = dict()
+            for t, v in enumerate(intervention_values[i]):
+                values[i][t] = v
+        quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
+        quantile_bounds = self.get_upper_bounds([d.index for d in pb.quantile_risk_dec])
+        for time in range(pb.nb_timesteps):
+            # Solve:
+            b_coef, a_coefs, value = constraint_gen.UserCutCoefModeler.run(pb, time, values, cutoff=quantile_bounds[time])
+            if value is None:
+                continue
+            if value >= quantile_values[time] + 1.0e-6:
+                rhs = b_coef
+                decisions = []
+                coefs = []
+                for i, i_coefs in a_coefs.items():
+                    for t, coef in i_coefs.items():
+                        decisions.append( (i, t) )
+                        coefs.append(-coef)
+                interventions_used = set(decisions)
+                for it, risk_min in self.pb.quantile_risk.min_risk_from_times[time].items():
+                    if it not in interventions_used:
+                        decisions.append(it)
+                        coefs.append(-risk_min)
+                #print(f"Found more agressive case at time {time} with {len(decisions)} decisions: {value} vs {quantile_values[time]}")
+                self.add_constraint(time, rhs, coefs, decisions)
 
 
 def run(args):
@@ -535,9 +597,11 @@ if __name__ == '__main__':
     g2.add_argument('--subset-constraints', action='store_true', dest="subset_constraints", help="Enable subset lazy constraints")
     g2.add_argument('--no-subset-constraints', action='store_false', dest="subset_constraints", help="Enable subset lazy constraints")
 
-    parser.set_defaults(root_constraints=True, subset_constraints=True)
+    g1 = parser.add_mutually_exclusive_group()
+    g1.add_argument('--root-cuts', action='store_true', dest="root_cuts", help="Enable agressive cuts at root node")
+    g1.add_argument('--no-root-cuts', action='store_false', dest="root_cuts", help="Disable agressive cuts at root node")
 
-    parser.add_argument("--extend-frequency", help="Frequency of using constraint extension", type=float, default=0.2, dest="extend_frequency")
+    parser.set_defaults(root_constraints=True, subset_constraints=True, root_cuts=False)
 
     args = parser.parse_args()
     if not args.name and not args.instance_file:
