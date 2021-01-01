@@ -540,7 +540,7 @@ void Problem::set(const std::vector<int> &startTimes) {
     }
 }
 
-Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) {
+Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) const {
     assert (startTimes_[intervention] == -1);
     Objective ret = Objective::Min();
     int exclusionObj = exclusions_.objectiveIfSet(intervention, startTime);
@@ -561,6 +561,26 @@ Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Obje
     double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);
     ret.risk = meanRiskObj + quantileRiskObj;
     return ret;
+}
+
+double Problem::riskBound() const {
+    // Compute a simple bound of the best objective we can still get
+    // Could actually be pessimistic if alpha < 0.5
+    double bound = quantileRisk_.value() + meanRisk_.value();
+    double currentMeanRisk = meanRisk_.value();
+    for (int i = 0; i < nbInterventions(); ++i) {
+        if (assigned(i)) continue;
+        double minIncrease = numeric_limits<double>::infinity();
+        for (int t = 0; t < maxStartTime(i); ++t) {
+            double meanRiskIncrease = meanRisk_.objectiveIfSet(i, t) - currentMeanRisk;
+            if (meanRiskIncrease >= minIncrease) continue;
+            double resourceObj = resources_.objectiveIfSet(i, t);
+            if (resourceObj >= resources_.value() + resourceTol) continue;
+            minIncrease = meanRiskIncrease;
+        }
+        bound += minIncrease;
+    }
+    return bound;
 }
 
 bool Problem::validSolution() const {

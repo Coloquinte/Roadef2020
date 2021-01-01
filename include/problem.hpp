@@ -203,7 +203,8 @@ class Problem {
     void set(int intervention, int startTime);
     void unset(int intervention);
     void set(const std::vector<int> &startTimes);
-    Objective objectiveIfSet(int intervention, int startTime, Objective threshold);
+    Objective objectiveIfSet(int intervention, int startTime, Objective threshold) const;
+    double riskBound() const;
 
     // Access to internal data
     const Exclusions &exclusions() const { return exclusions_; }
