@@ -275,7 +275,8 @@ class LazyConstraintCoefCallback(ConstraintCallbackMixin, LazyConstraintCallback
             return
         constraint_added = self.try_add_constraint(b_coef, a_coefs, assignment)
         if constraint_added:
-            #Agressively try a few more assignments similar to this one
+            # Agressively try a few more assignments similar to this one
+            # They may not satisfy the resource constraints, but that is not an issue
             for i, r in m.intervention_risks.items():
                 for t in r.keys():
                     attempt = dict(assignment)

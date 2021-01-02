@@ -542,6 +542,7 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
 
     def register_pb(self, pb):
         self.pb = pb
+        self.nb_fail = [0 for i in range(pb.nb_timesteps)]
 
     def add_constraint(self, time, rhs, coefs, decisions):
         pb = self.pb
@@ -571,25 +572,29 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
         quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
         quantile_bounds = self.get_upper_bounds([d.index for d in pb.quantile_risk_dec])
         for time in range(pb.nb_timesteps):
-            # Solve:
-            b_coef, a_coefs, value = constraint_gen.UserCutCoefModeler.run(pb, time, values, cutoff=quantile_bounds[time])
-            if value is None:
+            if self.nb_fail[time] >= 2:
                 continue
-            if value >= quantile_values[time] + 1.0e-6:
-                rhs = b_coef
-                decisions = []
-                coefs = []
-                for i, i_coefs in a_coefs.items():
-                    for t, coef in i_coefs.items():
-                        decisions.append( (i, t) )
-                        coefs.append(-coef)
-                interventions_used = set(decisions)
-                for it, risk_min in self.pb.quantile_risk.min_risk_from_times[time].items():
-                    if it not in interventions_used:
-                        decisions.append(it)
-                        coefs.append(-risk_min)
-                #print(f"Found more agressive case at time {time} with {len(decisions)} decisions: {value} vs {quantile_values[time]}")
-                self.add_constraint(time, rhs, coefs, decisions)
+            b_coef, a_coefs, value = constraint_gen.UserCutCoefModeler.run(pb, time, values, cutoff=quantile_bounds[time], time_limit=20)
+            if value is None:
+                self.nb_fail[time] += 1
+                continue
+            if value < quantile_values[time] + 1.0e-6:
+                self.nb_fail[time] += 1
+                continue
+            rhs = b_coef
+            decisions = []
+            coefs = []
+            for i, i_coefs in a_coefs.items():
+                for t, coef in i_coefs.items():
+                    decisions.append( (i, t) )
+                    coefs.append(-coef)
+            interventions_used = set(decisions)
+            for it, risk_min in self.pb.quantile_risk.min_risk_from_times[time].items():
+                if it not in interventions_used:
+                    decisions.append(it)
+                    coefs.append(-risk_min)
+            #print(f"Found more agressive case at time {time} with {len(decisions)} decisions: {value} vs {quantile_values[time]}")
+            self.add_constraint(time, rhs, coefs, decisions)
 
         if pb.log_file is not None:
             call_end_time = time_mod.perf_counter()
