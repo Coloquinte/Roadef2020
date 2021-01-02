@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# Copyright (C) 2019 Gabriel Gouvine - All Rights Reserved
+
 """
 @author: Gabriel Gouvine
 """
@@ -19,7 +21,6 @@ from cplex.callbacks import LazyConstraintCallback, UserCutCallback
 from docplex.mp.callbacks.cb_mixin import ConstraintCallbackMixin
 
 import common
-import checker
 import constraint_gen
 
 RESOURCES_STR = 'Resources'
@@ -285,8 +286,6 @@ class Problem:
         params.workmem = 2048
         params.mip.limits.treememory = 60000  # Bound disk usage
         params.randomseed = args.seed
-        if args.time is not None:
-            params.timelimit = args.time
 
         # Lazy constraints
         if not args.full and len(excess_risk_expr) >= 1:
@@ -603,6 +602,7 @@ def run(args):
     if args.name:
         print("J3")
         sys.exit(0)
+    starting_time = time_mod.perf_counter()
     instance = common.read_json(args.instance_file)
     if args.reoptimize:
         common.read_solution_from_txt(instance, args.solution_file)
@@ -610,6 +610,13 @@ def run(args):
     if args.verbosity >= 1:
         print(f"Parsed instance with {pb.nb_interventions} interventions, {pb.nb_timesteps} timesteps")
     pb.create_model()
+    solve_starting_time = time_mod.perf_counter()
+    if args.time is not None:
+        safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+        if safe_limit <= 0.0:
+            print("Not enough time remaining to solve the model")
+            sys.exit(1)
+        pb.model.parameters.timelimit = safe_limit
     pb.model.solve(log_output=True)
     pb.write_back()
 

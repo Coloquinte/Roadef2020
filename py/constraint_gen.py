@@ -1,4 +1,8 @@
-import pdb
+# Copyright (C) 2019 Gabriel Gouvine - All Rights Reserved
+
+"""
+@author: Gabriel Gouvine
+"""
 
 import numpy as np
 import docplex.mp
