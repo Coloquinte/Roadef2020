@@ -19,6 +19,8 @@ class UserCutCoefModeler:
         modeler = UserCutCoefModeler(pb, time, values)
         if cutoff is not None:
             modeler.cutoff = cutoff
+        if time_limit is not None:
+            modeler.time_limit = time_limit
         modeler.create_intervention_risks()
         if len(modeler.intervention_risks) == 0:
             # No variable at all
@@ -28,9 +30,8 @@ class UserCutCoefModeler:
         modeler.add_simple_optimistic_constraints()
         lazyct_cb = modeler.m.register_callback(LazyConstraintCoefCallback)
         lazyct_cb.modeler = modeler
-        if time_limit is not None:
-            params = modeler.m.parameters
-            params.timelimit = time_limit
+        if modeler.time_limit is not None:
+            modeler.m.parameters.timelimit = modeler.time_limit
         #print(f"Starting cut model for time {time}")
         s = modeler.m.solve()
         if s is None or s.solve_status != JobSolveStatus.OPTIMAL_SOLUTION:
@@ -47,15 +48,12 @@ class UserCutCoefModeler:
         self.values = values
 
         self.cutoff = float("inf")
-        self.used_times = None
+        self.time_limit = None
 
         # Model and decisions
         self.m = Model(name="user_cut_coef_model")
         self.a_decs = None
         self.b_dec = None
-
-        # Added constraints
-        self.lazy_constraints = set()
 
     def create_intervention_risks(self):
         # Gather risks for every intervention we want
@@ -148,6 +146,8 @@ class UserCutCoefModeler:
         obj = self.m.quantile_risk_objective.solution_value
         # Check that the solution is correct i.e. no violated assignment
         assignment = self.find_violated_assignment(b_coef, a_coefs)
+        if assignment is None:
+            return None, None, None
         constraint_value = self.compute_expected_risk(b_coef, a_coefs, assignment)
         actual_value = self.compute_risk(assignment)
         assert constraint_value <= actual_value + 1.0e-6, f"Found a violated assignment: {constraint_value:.4f} to {actual_value:.4f} ({len(assignment)} interventions, {assignment})"
@@ -212,6 +212,9 @@ class UserCutCoefModeler:
         # Maximize violation
         m.maximize(m.constraint_value - m.actual_value)
     
+        if self.time_limit is not None:
+            m.parameters.timelimit = self.time_limit
+
         s = m.solve()
         if s is None or s.solve_status != JobSolveStatus.OPTIMAL_SOLUTION:
             #s = m.solve(log_output=True)
@@ -251,7 +254,6 @@ class LazyConstraintCoefCallback(ConstraintCallbackMixin, LazyConstraintCallback
             var_decisions.append(m.a_decs[intervention][t].index)
         coefs = [1.0] * len(var_decisions)
         self.add([var_decisions, coefs], "L", actual_value)
-        self.modeler.lazy_constraints.add(tuple(sorted(assignment.items())))
         return True
 
     def get_coefs(self):
@@ -270,7 +272,6 @@ class LazyConstraintCoefCallback(ConstraintCallbackMixin, LazyConstraintCallback
         b_coef, a_coefs = self.get_coefs()
         assignment = self.modeler.find_violated_assignment(b_coef, a_coefs)
         if assignment is None:
-            print(f"\tSearch for violated assignment failed ({m.time})")
             self.abort()
             return
         constraint_added = self.try_add_constraint(b_coef, a_coefs, assignment)
