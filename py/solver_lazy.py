@@ -39,7 +39,7 @@ QUANTILE_STR = "Quantile"
 ALPHA_STR = "Alpha"
 MODEL_STR = "Model"
 
-RiskTuple = collections.namedtuple("RiskTuple", ["time", "risk", "min", "max", "quantile", "mean"])
+RiskTuple = collections.namedtuple("RiskTuple", ["time", "risk", "min", "max", "mean"])
 
 class Subproblem:
     def __init__(self, problem):
@@ -143,10 +143,9 @@ class QuantileRisk(Subproblem):
                     intervention_time = int(intervention_time_str)-1
                     risk_array = alpha / self.pb.nb_timesteps * np.array(risks)
                     self.risk_contribution[i][intervention_time].append( (risk_time, risk_array) )
-                    quantile_value = np.sort(risk_array)[self.quantile_scenario[risk_time]]
                     tp = RiskTuple(time=intervention_time, risk=risk_array,
                                    min=risk_array.min(), max=risk_array.max(),
-                                   mean=np.mean(risk_array), quantile=quantile_value)
+                                   mean=np.mean(risk_array))
                     self.risk_origin[risk_time][i].append(tp)
                     elt = (i, intervention_time)
                     self.risk_from_times[risk_time][elt] = risk_array
@@ -192,14 +191,20 @@ class Problem:
         self.model = m
 
         # Basic decisions
+        if self.args.verbosity >= 2:
+            print("Creating decision variables")
         self.intervention_decisions = [[m.binary_var(name=f"i_{i}_{t}") for t in range(s)] for i, s in enumerate(self.max_start_times)]
         for ivars in self.intervention_decisions:
             m.add_constraint(m.sum(ivars) == 1)
 
         # Exclusion constraints
+        if self.args.verbosity >= 2:
+            print("Creating exclusion constraints")
         self.create_exclusions()
 
         # Resource constraints
+        if self.args.verbosity >= 2:
+            print("Creating resource constraints")
         for resource_time in range(self.nb_timesteps):
             for resource in range(self.nb_resources):
                 decisions = []
@@ -209,6 +214,8 @@ class Problem:
                 m.add_constraint(m.sum(decisions) >= self.resources.lower_bounds[resource_time, resource])
 
         # Mean risk objective
+        if self.args.verbosity >= 2:
+            print("Creating mean risk objective")
         mean_risk_expr = []
         for i in range(self.nb_interventions):
             for j in range(self.max_start_times[i]):
@@ -217,11 +224,16 @@ class Problem:
         m.add_kpi(m.mean_risk_objective, "mean_risk_objective")
 
         # Excess risk objective
+        if self.args.verbosity >= 2:
+            print("Creating excess risk objective")
         self.mean_risk_dec = [m.continuous_var(name=f"mr_{i}") for i in range(self.nb_timesteps)]
         self.quantile_risk_dec = [m.continuous_var(name=f"qr_{i}") for i in range(self.nb_timesteps)]
         self.indicator_dec = []
         excess_risk_expr = []
         for i in range(self.nb_timesteps):
+            if self.quantile_risk.nb_scenarios[i] <= 1:
+                continue
+
             # Do not count quantile risk when it's lower than the mean risk
             m.add_constraint(self.quantile_risk_dec[i] - self.mean_risk_dec[i] >= 0.0)
 
@@ -253,9 +265,16 @@ class Problem:
         m.minimize(m.mean_risk_objective + m.excess_risk_objective)
 
         # Additional useful constraints for better bounds
+        if self.args.verbosity >= 2:
+            print("Adding basic root constraints")
         self.add_simple_root_constraints()
         if args.root_constraints:
+            if self.args.verbosity >= 2:
+                print("Adding advanced root constraints")
             self.add_root_constraints()
+
+        if self.args.verbosity >= 2:
+            print("Finished model creation")
 
         # Setup time limit and other strategies
         params = m.parameters
@@ -270,7 +289,7 @@ class Problem:
             params.timelimit = args.time
 
         # Lazy constraints
-        if not args.full:
+        if not args.full and len(excess_risk_expr) >= 1:
             lazyct_cb = m.register_callback(QuantileLazyCallback)
             lazyct_cb.register_pb(self)
             if args.root_cuts:
@@ -289,14 +308,18 @@ class Problem:
                 dec = self.intervention_decisions[i][start_time]
                 for t in range(start_time, start_time + self.exclusions.durations[i][start_time]):
                     presence[i][t].append(dec)
+        constraints = []
         for t in range(self.nb_timesteps):
             for i1 in range(self.nb_interventions):
                 for i2 in self.exclusions.conflicts[t][i1]:
                     expr = presence[i1][t] + presence[i2][t]
-                    m.add_constraint(m.sum(expr) <= 1)
+                    constraints.append(m.sum(expr) <= 1)
+        m.add_constraints(constraints)
 
     def add_simple_root_constraints(self):
         for i in range(self.nb_timesteps):
+            if self.quantile_risk.nb_scenarios[i] <= 1:
+                continue
             expr = [self.quantile_risk_dec[i]]
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
@@ -305,7 +328,8 @@ class Problem:
 
     def add_root_constraints(self):
         for i in range(self.nb_timesteps):
-            print(f"Adding root constraints for timestep {i}")
+            if self.args.verbosity >= 3:
+                print(f"\tAdding root constraints for timestep {i}")
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
             subsets_seen = set()
@@ -356,12 +380,14 @@ class Problem:
     def write_back(self):
         mean_risk = self.model.mean_risk_objective.solution_value
         excess_risk = self.model.excess_risk_objective.solution_value
-        print(f"Writing solution: {mean_risk + excess_risk:.4f} ({mean_risk:.4f} + {excess_risk:.4f})")
-        for i, intervention_name in enumerate(self.intervention_names):
-            start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
-            assert len(start_time) == 1
-            start_time = start_time[0]
-            self.instance[INTERVENTIONS_STR][intervention_name][START_STR] = start_time + 1
+        if self.args.verbosity >= 2:
+            print(f"Writing final solution: {mean_risk + excess_risk:.4f} ({mean_risk:.4f} + {excess_risk:.4f})")
+        with open(self.args.solution_file, 'w') as f:
+            for i, intervention_name in enumerate(self.intervention_names):
+                start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
+                assert len(start_time) == 1
+                start_time = start_time[0]
+                print(f'{intervention_name} {start_time+1}', file=f)
 
     def get_quantile_risk(self, time, intervention_times):
         risk = np.zeros(self.quantile_risk.nb_scenarios[time])
@@ -495,7 +521,8 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                 self.nb_calls += 1
         if tot_mean_risk + tot_excess_risk < self.best_value:
             self.best_value = tot_mean_risk + tot_excess_risk
-            print(f"Writing new solution: {self.best_value:.4f} ({tot_mean_risk:.4f} + {tot_excess_risk:.4f})")
+            if self.pb.args.verbosity >= 2:
+                print(f"Writing new solution: {self.best_value:.4f} ({tot_mean_risk:.4f} + {tot_excess_risk:.4f})")
             self.write_solution(start_times)
 
         if pb.log_file is not None:
@@ -528,6 +555,7 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
 
     def __call__(self):
         if self.get_node_ID() != 0:
+            # Only at root node, this stuff is heavy enough as it is
             return
         pb = self.pb
         self.nb_calls += 1
@@ -564,6 +592,12 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
                 #print(f"Found more agressive case at time {time} with {len(decisions)} decisions: {value} vs {quantile_values[time]}")
                 self.add_constraint(time, rhs, coefs, decisions)
 
+        if pb.log_file is not None:
+            call_end_time = time_mod.perf_counter()
+            print(f"Evaluated cut #{self.nb_calls} "
+                  f"in {call_end_time-call_start_time:.2f}s", file=pb.log_file)
+            pb.log_file.flush()
+
 
 def run(args):
     if args.name:
@@ -573,8 +607,11 @@ def run(args):
     if args.reoptimize:
         common.read_solution_from_txt(instance, args.solution_file)
     pb = Problem(instance, args)
+    if args.verbosity >= 1:
+        print(f"Parsed instance with {pb.nb_interventions} interventions, {pb.nb_timesteps} timesteps")
     pb.create_model()
     pb.model.solve(log_output=True)
+    pb.write_back()
 
 
 if __name__ == '__main__':
@@ -583,6 +620,7 @@ if __name__ == '__main__':
     parser.add_argument("--output", "-o", help="Output file name (.txt)", dest="solution_file")
     parser.add_argument("--seed", "-s", help="Random seed", type=int, default=0)
     parser.add_argument("--time-limit", "-t", help="Time limit", type=int, dest="time")
+    parser.add_argument("--verbosity", "-v", help="Verbosity level", type=int, default=0)
     parser.add_argument("-name", help="Print the team's name (J3)", action='store_true')
 
     parser.add_argument("--log-file", help="Log file for the cuts and lazy constraints", dest="log_file")
