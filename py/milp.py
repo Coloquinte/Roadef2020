@@ -185,7 +185,7 @@ class Problem:
 
     def compute_quantile_subset(self, risk, time):
         pos = self.quantile_risk.quantile_scenario[time]
-        return np.argpartition(risk, pos)[pos:]
+        return np.sort(np.argpartition(risk, pos)[pos:])
 
     def create_model(self):
         m = Model(name="RTE_planification_Lazy")
@@ -266,12 +266,8 @@ class Problem:
         m.minimize(m.mean_risk_objective + m.excess_risk_objective)
 
         # Additional useful constraints for better bounds
-        if self.args.verbosity >= 2:
-            print("Adding basic root constraints")
         self.add_simple_root_constraints()
         if args.root_constraints:
-            if self.args.verbosity >= 2:
-                print("Adding advanced root constraints")
             self.add_root_constraints()
 
         if self.args.verbosity >= 2:
@@ -316,6 +312,8 @@ class Problem:
         m.add_constraints(constraints)
 
     def add_simple_root_constraints(self):
+        if self.args.verbosity >= 2:
+            print("Adding simple root constraints")
         for i in range(self.nb_timesteps):
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
@@ -326,11 +324,12 @@ class Problem:
                 self.model.add_constraint(self.model.sum(expr) >= 0)
 
     def add_root_constraints(self):
+        if self.args.verbosity >= 2:
+            print("Adding advanced root constraints")
         for i in range(self.nb_timesteps):
-            if self.args.verbosity >= 3:
-                print(f"\tAdding root constraints for timestep {i}")
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
+            nb = 0
             subsets_seen = set()
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
@@ -347,6 +346,9 @@ class Problem:
                             contrib = tp2.risk[subset].min()
                             expr.append(- contrib * self.intervention_decisions[intervention2][tp2.time])
                     self.model.add_constraint(self.model.sum(expr) >= 0)
+                    nb += 1
+            if self.args.verbosity >= 3:
+                print(f"\tAdded {nb} root constraints for timestep {i}")
 
     def read_back(self):
         sol = docplex.mp.solution.SolveSolution(self.model)
@@ -622,6 +624,12 @@ def run(args):
             print("Not enough time remaining to solve the model")
             sys.exit(1)
         pb.model.parameters.timelimit = safe_limit
+
+    # Release the roblem data (quite huge actually)
+    pb.instance = None
+    instance = None
+
+    # Solve
     pb.model.solve(log_output=True)
     pb.write_back()
 
