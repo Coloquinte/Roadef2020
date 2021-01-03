@@ -330,20 +330,22 @@ class Problem:
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
             nb = 0
-            subsets_seen = set()
+            max_contrib_seen = [0.0 for j in range(self.nb_interventions)]
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
-                    if tp.max - tp.min <= 1.0e-7:
+                    if tp.max - tp.min <= 1.0e-6:
                         # Already handled by the simple root constraints
                         continue
                     subset = self.compute_quantile_subset(tp.risk, i)
-                    if tuple(subset) in subsets_seen:
+                    contrib = tp.risk[subset].min()
+                    if contrib <= max_contrib_seen[intervention] + 1.0e-2:
+                        # Not that good compared to cases we have seen with other subsets already
                         continue
-                    subsets_seen.add(tuple(subset))
                     expr = [self.quantile_risk_dec[i]]
                     for intervention2 in range(self.nb_interventions):
                         for tp2 in self.quantile_risk.risk_origin[i][intervention2]:
                             contrib = tp2.risk[subset].min()
+                            max_contrib_seen[intervention2] = max(max_contrib_seen[intervention2], contrib)
                             expr.append(- contrib * self.intervention_decisions[intervention2][tp2.time])
                     self.model.add_constraint(self.model.sum(expr) >= 0)
                     nb += 1
