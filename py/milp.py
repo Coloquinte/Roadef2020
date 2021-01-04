@@ -563,6 +563,8 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
             return
         pb = self.pb
         self.nb_calls += 1
+        if self.nb_calls >= 50:
+            return
         if pb.log_file is not None:
             call_start_time = time_mod.perf_counter()
         intervention_values = [

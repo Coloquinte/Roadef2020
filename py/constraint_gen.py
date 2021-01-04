@@ -64,7 +64,7 @@ class UserCutCoefModeler:
             for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
                 if tp.time not in self.values[intervention]:
                     continue
-                if self.values[intervention][tp.time] <= 1.0e-6:
+                if self.values[intervention][tp.time] <= 1.0e-4:
                     continue
                 if intervention not in self.intervention_risks:
                     self.intervention_risks[intervention] = dict()
@@ -150,7 +150,7 @@ class UserCutCoefModeler:
             return None, None, None
         constraint_value = self.compute_expected_risk(b_coef, a_coefs, assignment)
         actual_value = self.compute_risk(assignment)
-        assert constraint_value <= actual_value + 1.0e-6, f"Found a violated assignment: {constraint_value:.4f} to {actual_value:.4f} ({len(assignment)} interventions, {assignment})"
+        assert constraint_value <= actual_value + 1.0e-3, f"Found a violated assignment: {constraint_value:.4f} to {actual_value:.4f} ({len(assignment)} interventions, {assignment})"
         return b_coef, a_coefs, obj
 
     def find_violated_assignment(self, b_coef, a_coefs):
@@ -213,7 +213,7 @@ class UserCutCoefModeler:
         m.maximize(m.constraint_value - m.actual_value)
     
         if self.time_limit is not None:
-            m.parameters.timelimit = self.time_limit
+            m.parameters.timelimit = self.time_limit / 4
 
         s = m.solve()
         if s is None or s.solve_status != JobSolveStatus.OPTIMAL_SOLUTION:
@@ -242,7 +242,7 @@ class LazyConstraintCoefCallback(ConstraintCallbackMixin, LazyConstraintCallback
         m = self.modeler
         constraint_value = m.compute_expected_risk(b_coef, a_coefs, assignment)
         actual_value = m.compute_risk(assignment)
-        if constraint_value - actual_value < 1.0e-7:
+        if constraint_value - actual_value < 5.0e-4:
             # No violation
             return False
         if constraint_value >= m.cutoff:
