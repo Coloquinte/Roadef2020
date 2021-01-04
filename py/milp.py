@@ -383,8 +383,8 @@ class Problem:
     def write_back(self):
         mean_risk = self.model.mean_risk_objective.solution_value
         excess_risk = self.model.excess_risk_objective.solution_value
-        if self.args.verbosity >= 2:
-            print(f"Writing final solution: {mean_risk + excess_risk:.4f} ({mean_risk:.4f} + {excess_risk:.4f})")
+        if self.args.verbosity >= 1:
+            print(f"MILP: final solution with risk {mean_risk + excess_risk:.5f} ({mean_risk:.2f} + {excess_risk:.2f})")
         with open(self.args.solution_file, 'w') as f:
             for i, intervention_name in enumerate(self.intervention_names):
                 start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
@@ -525,7 +525,7 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
         if tot_mean_risk + tot_excess_risk < self.best_value:
             self.best_value = tot_mean_risk + tot_excess_risk
             if self.pb.args.verbosity >= 2:
-                print(f"Writing new solution: {self.best_value:.4f} ({tot_mean_risk:.4f} + {tot_excess_risk:.4f})")
+                print(f"MILP: new solution with risk {self.best_value:.5f} ({tot_mean_risk:.2f} + {tot_excess_risk:.2f})")
             self.write_solution(start_times)
 
         if pb.log_file is not None:
@@ -619,13 +619,13 @@ def run(args):
         common.read_solution_from_txt(instance, args.solution_file)
     pb = Problem(instance, args)
     if args.verbosity >= 1:
-        print(f"Parsed instance with {pb.nb_interventions} interventions, {pb.nb_timesteps} timesteps")
+        print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
     pb.create_model()
     solve_starting_time = time_mod.perf_counter()
     if args.time is not None:
         safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
         if safe_limit <= 0.0:
-            print("Not enough time remaining to solve the model")
+            print("Not enough time remaining to solve the MILP model")
             sys.exit(1)
         pb.model.parameters.timelimit = safe_limit
 
@@ -634,7 +634,8 @@ def run(args):
     instance = None
 
     # Solve
-    pb.model.solve(log_output=True)
+    #pb.model.solve(log_output=True)
+    pb.model.solve()
     pb.write_back()
 
 
@@ -644,7 +645,7 @@ if __name__ == '__main__':
     parser.add_argument("--output", "-o", help="Output file name (.txt)", dest="solution_file")
     parser.add_argument("--seed", "-s", help="Random seed", type=int, default=0)
     parser.add_argument("--time-limit", "-t", help="Time limit", type=int, dest="time")
-    parser.add_argument("--verbosity", "-v", help="Verbosity level", type=int, default=0)
+    parser.add_argument("--verbosity", "-v", help="Verbosity level", type=int, default=1)
     parser.add_argument("-name", help="Print the team's name (J3)", action='store_true')
 
     parser.add_argument("--log-file", help="Log file for the cuts and lazy constraints", dest="log_file")

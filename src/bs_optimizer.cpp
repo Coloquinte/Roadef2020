@@ -121,11 +121,11 @@ void BsOptimizer::initSolution() {
         bestObj = pb.objective();
         bestStartTimes = pb.startTimes();
         if (params.verbosity >= 2) {
-            cout << "Initial solution with "
-                 << pb.exclusionValue() << " exclusions, "
-                 << fixed << setprecision(2) << pb.resourceValue() << " overflow, "
-                 << fixed << setprecision(5) << pb.riskValue() << " risk "
-                 << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+            cout << "BEAM: initial solution with "
+                 << "risk " << fixed << setprecision(5) << pb.riskValue() << " "
+                 << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << "), "
+                 << "exclusions " << pb.exclusionValue() << ", "
+                 << "overflow " << fixed << setprecision(2) << pb.resourceValue()
                  << endl;
         }
     }
@@ -144,11 +144,11 @@ void BsOptimizer::recordSolution() {
             bestStartTimes = startTimes;
             if (params.verbosity >= 2) {
                 chrono::duration<double> elapsed = chrono::steady_clock::now() - params.startTime;
-                cout << "New solution with "
-                     << pb.exclusionValue() << " exclusions, "
-                     << fixed << setprecision(2) << pb.resourceValue() << " overflow, "
-                     << fixed << setprecision(5) << pb.riskValue() << " risk "
-                     << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+                cout << "BEAM: new solution with "
+                     << "risk " << fixed << setprecision(5) << pb.riskValue() << " "
+                     << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << "), "
+                     << "exclusions " << pb.exclusionValue() << ", "
+                     << "overflow " << fixed << setprecision(2) << pb.resourceValue()
                      << fixed << setprecision(1) << ", elapsed " << elapsed.count() << "s"
                      << endl;
             }

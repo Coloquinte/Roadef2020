@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   }
 
   if (params.verbosity >= 1) {
-    if (params.verbosity >= 2) {
+    if (params.verbosity >= 3) {
       cout << "Random seed set to " << params.seed << ". ";
       if (params.timeLimit < 1e8) {
           cout << "Time limit set to " << fixed << setprecision(1) << params.timeLimit << "s. ";
@@ -126,9 +126,9 @@ int main(int argc, char **argv) {
       cout << "Parsing took " << fixed << setprecision(1) << elapsed.count() << "s. ";
       cout << endl;
     }
-    cout << "Problem with "
-         << pb.nbInterventions() << " interventions "
-         << pb.nbResources() << " resources "
+    cout << "BEAM: problem with "
+         << pb.nbInterventions() << " interventions, "
+         << pb.nbResources() << " resources, "
          << pb.nbTimesteps() << " timesteps "
          << endl;
   }
@@ -137,11 +137,11 @@ int main(int argc, char **argv) {
   opti.run();
 
   if (params.verbosity >= 1) {
-    cout << "Final solution with "
-         << pb.exclusionValue() << " exclusions, "
-         << fixed << setprecision(2) << pb.resourceValue() << " overflow, "
-         << fixed << setprecision(5) << pb.riskValue() << " risk "
-         << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << ")"
+    cout << "BEAM: final solution with "
+         << "risk " << fixed << setprecision(5) << pb.riskValue() << " "
+         << fixed << setprecision(2) << "(" << pb.meanRiskValue() << " + " << pb.quantileRiskValue() << "), "
+         << "exclusions " << pb.exclusionValue() << ", "
+         << "overflow " << fixed << setprecision(2) << pb.resourceValue()
          << endl;
   }
 
