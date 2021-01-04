@@ -39,7 +39,7 @@ if __name__ == '__main__':
                  "-p", args.instance_file,
                  "-o", args.solution_file,
                  "-s", str(args.seed),
-                 "-warm-start"]
+                 "-warm-start", args.solution_file, args.solution_file + ".milp"]
     milp_args += ["-t", str(args.time // 2)]
     first_beam_args += ["-t", str(args.time // 2)]
     second_beam_args += ["-t", str(args.time // 2)]

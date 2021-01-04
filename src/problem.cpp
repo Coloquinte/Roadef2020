@@ -249,7 +249,7 @@ void Problem::readSolution(istream &is) {
 
 void Problem::readSolutionFile(const string &fname) {
     ifstream f(fname);
-    return readSolution(f);
+    readSolution(f);
 }
 
 void Problem::writeSolution(ostream &os) {

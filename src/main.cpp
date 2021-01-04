@@ -42,7 +42,8 @@ po::options_description getOptions() {
   desc.add_options()("restart-depth", po::value<double>()->default_value(10.0),
                      "Depth used to backtrack during restarts");
 
-  desc.add_options()("warm-start", "Warm-start from the solution file");
+  desc.add_options()("warm-start", po::value<vector<string> >()->multitoken(),
+                     "Warm-start from the solution file");
 
   desc.add_options()("analyze", "Analyze the given solution");
 
@@ -110,7 +111,19 @@ int main(int argc, char **argv) {
       exit(0);
   }
   if (vm.count("warm-start")) {
-      pb.readSolutionFile(params.solution);
+    vector<string> warmStarts = vm["warm-start"].as<vector<string> >();
+    Problem::Objective bestObj;
+    vector<int> bestStartTimes;
+    for (string f : warmStarts) {
+        pb.readSolutionFile(f);
+        if (pb.validSolution() && pb.objective().betterThan(bestObj)) {
+            bestObj = pb.objective();
+            bestStartTimes = pb.startTimes();
+        }
+    }
+    if (bestStartTimes.size() != 0) {
+        pb.reset(bestStartTimes);
+    }
   }
 
   if (params.verbosity >= 1) {
