@@ -634,8 +634,10 @@ def run(args):
     instance = None
 
     # Solve
-    #pb.model.solve(log_output=True)
-    pb.model.solve()
+    if args.verbosity >= 2:
+        pb.model.solve(log_output=True)
+    else:
+        pb.model.solve()
     pb.write_back()
 
 

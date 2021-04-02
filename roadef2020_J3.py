@@ -45,7 +45,10 @@ if __name__ == '__main__':
     second_beam_args += ["-t", str(args.time // 2)]
     milp_proc = subprocess.Popen(milp_args)
     beam_proc = subprocess.Popen(first_beam_args)
-    milp_proc.wait()
+    try:
+        milp_proc.wait(timeout=args.time//2+2)
+    except subprocess.TimeoutExpired:
+        pass
     beam_proc.wait()
     beam_proc = subprocess.Popen(second_beam_args)
     beam_proc.wait()

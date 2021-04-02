@@ -10,6 +10,7 @@ Simultaneously, our heuristic method uses beam search with a simple bounding pro
 
 # Requirements
 
+* Python3
 * Numpy
 * CPLEX (used from the Python API)
 
