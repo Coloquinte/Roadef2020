@@ -232,6 +232,8 @@ class Problem:
         self.indicator_dec = []
         excess_risk_expr = []
         for i in range(self.nb_timesteps):
+            if self.args.skip_quantile_risk:
+                continue
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
 
@@ -317,6 +319,8 @@ class Problem:
         for i in range(self.nb_timesteps):
             if self.quantile_risk.nb_scenarios[i] <= 1:
                 continue
+            if self.args.skip_quantile_risk:
+                continue
             expr = [self.quantile_risk_dec[i]]
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
@@ -328,6 +332,8 @@ class Problem:
             print("Adding advanced root constraints")
         for i in range(self.nb_timesteps):
             if self.quantile_risk.nb_scenarios[i] <= 1:
+                continue
+            if self.args.skip_quantile_risk:
                 continue
             nb = 0
             max_contrib_seen = [0.0 for j in range(self.nb_interventions)]
@@ -655,6 +661,7 @@ if __name__ == '__main__':
     parser.add_argument("--log-file", help="Log file for the cuts and lazy constraints", dest="log_file")
     parser.add_argument("--warm-start", help="Improve an existing solution", action='store_true', dest="reoptimize")
     parser.add_argument("--full", help="Use a complete model without lazy constraints", action='store_true')
+    parser.add_argument('--skip-quantile-risk', action='store_true', help="Completely skip quantile risk modeling")
 
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--root-constraints', action='store_true', dest="root_constraints", help="Enable additional root constraints")
