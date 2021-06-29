@@ -197,6 +197,7 @@ Problem Problem::read(istream &is) {
 
     // Quantile risk
     pb.quantileRisk_.nbScenarios_ = scenarioNumbers;
+    pb.quantileRisk_.contribEstimates_.resize(pb.nbInterventions(), vector<double>(pb.nbTimesteps(), 0.0));
     for (int num : scenarioNumbers) {
         pb.quantileRisk_.quantileScenarios_.push_back(ceil(num * quantile) - 1);
     }
@@ -449,6 +450,9 @@ double QuantileRisk::objectiveIfSet(int intervention, int startTime) const {
         double newExcess = computeExcess(c.time, risks);
         currentValue += newExcess - oldExcess;
     }
+    // Running mean estimate of the actual change
+    double estimateMomentum = 0.95;
+    contribEstimates_[intervention][startTime] = estimateMomentum * contribEstimates_[intervention][startTime] + (1.0 - estimateMomentum) * (currentValue - currentValue_);
     return currentValue;
 }
 
@@ -559,8 +563,7 @@ Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Obje
     if (threshold.betterThan(ret))
         return ret;
     if (skipQuantile) {
-        double quantileRiskObj = quantileRisk_.value();
-        // TODO: simple estimate of the additional risk
+        double quantileRiskObj = quantileRisk_.value() + quantileRisk_.contribEstimates_[intervention][startTime];
         ret.risk = meanRiskObj + quantileRiskObj;
     } else {
         double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);

@@ -132,6 +132,7 @@ class QuantileRisk {
     std::vector<int> quantileScenarios_;
     // By intervention by start time
     std::vector<std::vector<std::vector<RiskContribution> > > contribs_;
+    mutable std::vector<std::vector<double> > contribEstimates_;
 
     // Incremental data
     double currentValue_;
