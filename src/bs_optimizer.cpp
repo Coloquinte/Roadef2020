@@ -307,16 +307,16 @@ vector<int> BsOptimizer::getSearchPriority() {
     int choice = uniform_int_distribution<int>(0, 3)(rgen);
     choiceSearchPriority = choice;
     if (choice == 0) {
-        return getSearchPriorityRandom();
+        return getInterventionOrderRandom();
     }
     else if (choice == 1) {
-        return getSearchPriorityDemandRanking();
+        return getPriorityDemandRanking();
     }
     else if (choice == 2) {
-        return getSearchPriorityOverflowCost();
+        return getPriorityRiskRanking();
     }
     else {
-        return getSearchPriorityRiskRanking();
+        return getPriorityOverflowCost();
     }
 }
 
@@ -333,19 +333,15 @@ vector<int> rankingFromMeasure(const vector<double> &measure) {
     return order;
 }
 
-vector<int> BsOptimizer::getSearchPriorityRiskRanking() {
+vector<int> BsOptimizer::getPriorityRiskRanking() {
     return rankingFromMeasure(measureSpanMeanRisk(pb));
 }
 
-vector<int> BsOptimizer::getSearchPriorityDemandRanking() {
+vector<int> BsOptimizer::getPriorityDemandRanking() {
     return rankingFromMeasure(measureAverageDemand(pb));
 }
 
-vector<int> BsOptimizer::getSearchPriorityRandom() {
-    return getInterventionOrderRandom();
-}
-
-vector<int> BsOptimizer::getSearchPriorityOverflowCost() {
+vector<int> BsOptimizer::getPriorityOverflowCost() {
     if (!solutionFound()) return getInterventionOrderRandom();
     vector<int> timesteps = getTimestepOrderOverflowCost();
     return getInterventionOrderFromTimestepOrder(timesteps);
@@ -355,20 +351,20 @@ vector<int> BsOptimizer::getRestartPriority() {
     int choice = uniform_int_distribution<int>(0, 3)(rgen);
     choiceRestartPriority = choice;
     if (choice == 0) {
-        return getRestartPriorityRandom();
+        return getInterventionOrderRandom();
     }
     else if (choice == 1) {
-        return getRestartPriorityConflicts();
+        return getPriorityConflicts();
     }
     else if (choice == 2) {
-        return getRestartPriorityOverflowCost();
+        return getPriorityOverflowCost();
     }
     else {
-        return getRestartPriorityTimesteps();
+        return getPriorityTimesteps();
     }
 }
 
-vector<int> BsOptimizer::getRestartPriorityConflicts() {
+vector<int> BsOptimizer::getPriorityConflicts() {
     // Pick the most used timesteps for an intervention
     // Restart all interventions that are in conflict with those
     if (!solutionFound()) return getInterventionOrderRandom();
@@ -423,7 +419,7 @@ vector<int> BsOptimizer::getRestartPriorityConflicts() {
     return order;
 }
 
-vector<int> BsOptimizer::getRestartPriorityTimesteps() {
+vector<int> BsOptimizer::getPriorityTimesteps() {
     // Pick the timesteps in random order
     // Restart all interventions that are present here
     if (!solutionFound()) return getInterventionOrderRandom();
@@ -478,16 +474,6 @@ vector<double> computeOverflowEstimate(const Resources &resources) {
 
 vector<double> computeCostEstimate(const QuantileRisk &risk) {
     return risk.excess();
-}
-
-vector<int> BsOptimizer::getRestartPriorityOverflowCost() {
-    if (!solutionFound()) return getInterventionOrderRandom();
-    vector<int> timesteps = getTimestepOrderOverflowCost();
-    return getInterventionOrderFromTimestepOrder(timesteps);
-}
-
-vector<int> BsOptimizer::getRestartPriorityRandom() {
-    return getInterventionOrderRandom();
 }
 
 vector<int> BsOptimizer::getInterventionOrderRandom() {

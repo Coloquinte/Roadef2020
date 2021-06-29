@@ -29,16 +29,16 @@ class BsOptimizer {
     int getRestartDepthRandomUniform();
     int getRestartDepthMixed();
     int getRestartDepthRandomGeom();
+
     std::vector<int> getSearchPriority();
-    std::vector<int> getSearchPriorityDemandRanking();
-    std::vector<int> getSearchPriorityRiskRanking();
-    std::vector<int> getSearchPriorityRandom();
-    std::vector<int> getSearchPriorityOverflowCost();
     std::vector<int> getRestartPriority();
-    std::vector<int> getRestartPriorityConflicts();
-    std::vector<int> getRestartPriorityTimesteps();
-    std::vector<int> getRestartPriorityRandom();
-    std::vector<int> getRestartPriorityOverflowCost();
+
+    std::vector<int> getPriorityDemandRanking();
+    std::vector<int> getPriorityRiskRanking();
+    std::vector<int> getPriorityConflicts();
+    std::vector<int> getPriorityTimesteps();
+    std::vector<int> getPriorityOverflowCost();
+
     std::vector<int> getInterventionOrderRandom();
     std::vector<int> getTimestepOrderRandom();
     std::vector<int> getTimestepOrderOverflowCost();
