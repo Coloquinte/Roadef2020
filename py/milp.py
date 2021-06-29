@@ -178,6 +178,7 @@ class Problem:
         self.resources = Resources(self)
         self.mean_risk = MeanRisk(self)
         self.quantile_risk = QuantileRisk(self)
+        self.best_value = float("inf")
 
     def compute_quantile_value(self, risk, time):
         pos = self.quantile_risk.quantile_scenario[time]
@@ -399,12 +400,13 @@ class Problem:
                 assert len(start_time) == 1
                 start_time = start_time[0]
                 self.instance[INTERVENTIONS_STR][intervention_name][START_STR] = start_time + 1
-        #with open(self.args.solution_file, 'w') as f:
-        #    for i, intervention_name in enumerate(self.intervention_names):
-        #        start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
-        #        assert len(start_time) == 1
-        #        start_time = start_time[0]
-        #        print(f'{intervention_name} {start_time+1}', file=f)
+        if mean_risk + excess_risk < self.best_value:
+            with open(self.args.solution_file, 'w') as f:
+                for i, intervention_name in enumerate(self.intervention_names):
+                    start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
+                    assert len(start_time) == 1
+                    start_time = start_time[0]
+                    print(f'{intervention_name} {start_time+1}', file=f)
 
 
 
@@ -473,7 +475,6 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
         self.pb = None
         self.nb_calls = 0
         self.nb_constraints = 0
-        self.best_value = float("inf")
         self.intervention_history = None
 
     def register_pb(self, pb):
@@ -538,8 +539,8 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
-        if tot_mean_risk + tot_excess_risk < self.best_value:
-            self.best_value = tot_mean_risk + tot_excess_risk
+        if tot_mean_risk + tot_excess_risk < pb.best_value:
+            pb.best_value = tot_mean_risk + tot_excess_risk
             if self.pb.args.verbosity >= 2:
                 print(f"MILP: new solution with risk {self.best_value:.5f} ({tot_mean_risk:.2f} + {tot_excess_risk:.2f})")
             self.write_solution(start_times)
