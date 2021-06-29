@@ -319,7 +319,7 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 }
 
 vector<int> BsOptimizer::getSearchPriority() {
-    int choice = uniform_int_distribution<int>(0, 3)(rgen);
+    int choice = uniform_int_distribution<int>(0, 2)(rgen);
     choiceSearchPriority = choice;
     if (choice == 0) {
         return getInterventionOrderRandom();
@@ -327,11 +327,8 @@ vector<int> BsOptimizer::getSearchPriority() {
     else if (choice == 1) {
         return getPriorityDemandRanking();
     }
-    else if (choice == 2) {
-        return getPriorityRiskRanking();
-    }
     else {
-        return getPriorityOverflowCost();
+        return getPriorityRiskRanking();
     }
 }
 
@@ -363,7 +360,7 @@ vector<int> BsOptimizer::getPriorityOverflowCost() {
 }
 
 vector<int> BsOptimizer::getRestartPriority() {
-    int choice = uniform_int_distribution<int>(0, 5)(rgen);
+    int choice = uniform_int_distribution<int>(0, 3)(rgen);
     choiceRestartPriority = choice;
     if (choice == 0) {
         return getInterventionOrderRandom();
@@ -373,12 +370,6 @@ vector<int> BsOptimizer::getRestartPriority() {
     }
     else if (choice == 2) {
         return getPriorityOverflowCost();
-    }
-    else if (choice == 3) {
-        return getPriorityDemandRanking();
-    }
-    else if (choice == 4) {
-        return getPriorityRiskRanking();
     }
     else {
         return getPriorityTimesteps();

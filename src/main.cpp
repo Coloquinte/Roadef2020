@@ -33,13 +33,13 @@ po::options_description getOptions() {
   desc.add_options()("name", "Print the team's name (J3)");
   desc.add_options()("help,h", "Print this help");
 
-  desc.add_options()("beam-width", po::value<double>()->default_value(10.0),
+  desc.add_options()("beam-width", po::value<double>()->default_value(5.0),
                      "Beam width during search");
 
-  desc.add_options()("backtrack-depth", po::value<double>()->default_value(0.5),
+  desc.add_options()("backtrack-depth", po::value<double>()->default_value(0.0),
                      "Depth used to backtrack during search");
 
-  desc.add_options()("restart-depth", po::value<double>()->default_value(10.0),
+  desc.add_options()("restart-depth", po::value<double>()->default_value(5.0),
                      "Depth used to backtrack during restarts");
 
   desc.add_options()("warm-start", po::value<vector<string> >()->multitoken(),
