@@ -338,7 +338,9 @@ class Problem:
                         continue
                     subset = self.compute_quantile_subset(tp.risk, i)
                     contrib = tp.risk[subset].min()
-                    if contrib <= max_contrib_seen[intervention] + 1.0e-2:
+                    abs_margin = 0.01
+                    rel_margin = 0.05
+                    if contrib <= max_contrib_seen[intervention] * (1.0 + rel_margin) + abs_margin:
                         # Not that good compared to cases we have seen with other subsets already
                         continue
                     expr = [self.quantile_risk_dec[i]]

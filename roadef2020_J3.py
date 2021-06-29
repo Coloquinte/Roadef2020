@@ -47,7 +47,7 @@ if __name__ == '__main__':
     beam_proc = subprocess.Popen(first_beam_args)
     try:
         milp_proc.wait(timeout=args.time//2+2)
-    except subprocess.TimeoutExpired:
+    except:
         pass
     beam_proc.wait()
     beam_proc = subprocess.Popen(second_beam_args)
