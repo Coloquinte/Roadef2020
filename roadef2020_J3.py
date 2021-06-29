@@ -30,7 +30,8 @@ if __name__ == '__main__':
     milp_args = ["python3", "py/milp.py",
                  "-p", args.instance_file,
                  "-o", args.solution_file + ".milp",
-                 "-s", str(args.seed)]
+                 "-s", str(args.seed),
+                 "--two-solves"]
     first_beam_args = ["bin/beam_search.bin",
                  "-p", args.instance_file,
                  "-o", args.solution_file,

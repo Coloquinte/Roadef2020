@@ -393,12 +393,20 @@ class Problem:
         excess_risk = self.model.excess_risk_objective.solution_value
         if self.args.verbosity >= 1:
             print(f"MILP: final solution with risk {mean_risk + excess_risk:.5f} ({mean_risk:.2f} + {excess_risk:.2f})")
-        with open(self.args.solution_file, 'w') as f:
+        if self.instance is not None:
             for i, intervention_name in enumerate(self.intervention_names):
                 start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
                 assert len(start_time) == 1
                 start_time = start_time[0]
-                print(f'{intervention_name} {start_time+1}', file=f)
+                self.instance[INTERVENTIONS_STR][intervention_name][START_STR] = start_time + 1
+        #with open(self.args.solution_file, 'w') as f:
+        #    for i, intervention_name in enumerate(self.intervention_names):
+        #        start_time = [t for t, d in enumerate(self.intervention_decisions[i]) if d.solution_value > 0.5]
+        #        assert len(start_time) == 1
+        #        start_time = start_time[0]
+        #        print(f'{intervention_name} {start_time+1}', file=f)
+
+
 
     def get_quantile_risk(self, time, intervention_times):
         risk = np.zeros(self.quantile_risk.nb_scenarios[time])
@@ -447,7 +455,7 @@ class Problem:
                 # Only safe in this case
                 contrib = min(contrib, quantile_risk)
             coefs.append(-contrib)
-        rhs = quantile_risk + sum(coefs)
+        rhs = quantile_risk + sum(coefs) - 1.0e-6  # Tolerance
         if extend:
             # Add other interventions and times as required
             interventions_used = set(intervention_times)
@@ -625,9 +633,28 @@ def run(args):
     instance = common.read_json(args.instance_file)
     if args.reoptimize:
         common.read_solution_from_txt(instance, args.solution_file)
+
     pb = Problem(instance, args)
     if args.verbosity >= 1:
         print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
+
+    if args.two_solves:
+        args.skip_quantile_risk = True
+        pb.create_model()
+        solve_starting_time = time_mod.perf_counter()
+        if args.time is not None:
+            safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+            if safe_limit <= 0.0:
+                print("Not enough time remaining to solve the MILP model")
+                sys.exit(1)
+            pb.model.parameters.timelimit = safe_limit
+
+        # Solve
+        pb.model.solve(log_output=args.verbosity >= 2)
+        pb.write_back()
+        args.skip_quantile_risk = False
+        args.reoptimize = True
+        pb = Problem(instance, args)
     pb.create_model()
     solve_starting_time = time_mod.perf_counter()
     if args.time is not None:
@@ -637,15 +664,12 @@ def run(args):
             sys.exit(1)
         pb.model.parameters.timelimit = safe_limit
 
-    # Release the roblem data (quite huge actually)
+    # Release the problem data (quite huge actually)
     pb.instance = None
     instance = None
 
     # Solve
-    if args.verbosity >= 2:
-        pb.model.solve(log_output=True)
-    else:
-        pb.model.solve()
+    pb.model.solve(log_output=args.verbosity >= 2)
     pb.write_back()
 
 
@@ -662,6 +686,7 @@ if __name__ == '__main__':
     parser.add_argument("--warm-start", help="Improve an existing solution", action='store_true', dest="reoptimize")
     parser.add_argument("--full", help="Use a complete model without lazy constraints", action='store_true')
     parser.add_argument('--skip-quantile-risk', action='store_true', help="Completely skip quantile risk modeling")
+    parser.add_argument('--two-solves', action='store_true', help="Solve twice, once without evaluating the quantiles")
 
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--root-constraints', action='store_true', dest="root_constraints", help="Enable additional root constraints")
@@ -671,9 +696,9 @@ if __name__ == '__main__':
     g2.add_argument('--subset-constraints', action='store_true', dest="subset_constraints", help="Enable subset lazy constraints")
     g2.add_argument('--no-subset-constraints', action='store_false', dest="subset_constraints", help="Enable subset lazy constraints")
 
-    g1 = parser.add_mutually_exclusive_group()
-    g1.add_argument('--root-cuts', action='store_true', dest="root_cuts", help="Enable agressive cuts at root node")
-    g1.add_argument('--no-root-cuts', action='store_false', dest="root_cuts", help="Disable agressive cuts at root node")
+    g3 = parser.add_mutually_exclusive_group()
+    g3.add_argument('--root-cuts', action='store_true', dest="root_cuts", help="Enable agressive cuts at root node")
+    g3.add_argument('--no-root-cuts', action='store_false', dest="root_cuts", help="Disable agressive cuts at root node")
 
     parser.set_defaults(root_constraints=True, subset_constraints=True, root_cuts=False)
 
