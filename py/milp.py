@@ -278,7 +278,11 @@ class Problem:
 
         # Setup time limit and other strategies
         params = m.parameters
-        params.mip.tolerances.mipgap = 1.0e-6
+        if args.two_solves and args.skip_quantile_risk and any(nb > 1 for nb in self.quantile_risk.nb_scenarios):
+            # No need for a big precision
+            params.mip.tolerances.mipgap = 0.1
+        else:
+            params.mip.tolerances.mipgap = 1.0e-6
         params.mip.limits.cutsfactor = 100.0
         params.emphasis.mip = 2  # Optimality
         params.mip.strategy.file = 2  # Reduce memory usage by saving to disk
@@ -407,8 +411,6 @@ class Problem:
                     assert len(start_time) == 1
                     start_time = start_time[0]
                     print(f'{intervention_name} {start_time+1}', file=f)
-
-
 
     def get_quantile_risk(self, time, intervention_times):
         risk = np.zeros(self.quantile_risk.nb_scenarios[time])
