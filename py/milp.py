@@ -325,7 +325,7 @@ class Problem:
             for intervention in range(self.nb_interventions):
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
                     expr.append(- tp.min * self.intervention_decisions[intervention][tp.time])
-                self.model.add_constraint(self.model.sum(expr) >= 0)
+                self.model.add_constraint(self.model.sum(expr) >= -self.args.tolerance)
 
     def add_root_constraints(self):
         if self.args.verbosity >= 2:
@@ -355,7 +355,7 @@ class Problem:
                             contrib = tp2.risk[subset].min()
                             max_contrib_seen[intervention2] = max(max_contrib_seen[intervention2], contrib)
                             expr.append(- contrib * self.intervention_decisions[intervention2][tp2.time])
-                    self.model.add_constraint(self.model.sum(expr) >= 0)
+                    self.model.add_constraint(self.model.sum(expr) >= -self.args.tolerance)
                     nb += 1
             if self.args.verbosity >= 3:
                 print(f"\tAdded {nb} root constraints for timestep {i}")
@@ -431,7 +431,7 @@ class Problem:
             contrib = self.quantile_risk.max_risk_from_times[time][it]
             contrib = min(contrib, quantile_risk)
             coefs.append(-contrib)
-        rhs = quantile_risk + sum(coefs)
+        rhs = quantile_risk + sum(coefs) - self.args.tolerance
         if extend:
             # Add other interventions and times as required
             interventions_used = set(intervention_times)
@@ -455,7 +455,7 @@ class Problem:
                 # Only safe in this case
                 contrib = min(contrib, quantile_risk)
             coefs.append(-contrib)
-        rhs = quantile_risk + sum(coefs) - 1.0e-6  # Tolerance
+        rhs = quantile_risk + sum(coefs) - self.args.tolerance
         if extend:
             # Add other interventions and times as required
             interventions_used = set(intervention_times)
@@ -687,6 +687,7 @@ if __name__ == '__main__':
     parser.add_argument("--full", help="Use a complete model without lazy constraints", action='store_true')
     parser.add_argument('--skip-quantile-risk', action='store_true', help="Completely skip quantile risk modeling")
     parser.add_argument('--two-solves', action='store_true', help="Solve twice, once without evaluating the quantiles")
+    parser.add_argument("--tolerance", help="Tolerance on the constraints", type=float, default=1.0e-6)
 
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--root-constraints', action='store_true', dest="root_constraints", help="Enable additional root constraints")
