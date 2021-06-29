@@ -8,6 +8,18 @@ We use a hybrid approach to leverage the power of MILP solvers on the simplest p
 Our MILP model uses a custom lazy constraint generation routine: it is complete, proves optimality on simple instances and is able to provide solutions for large instances.
 Simultaneously, our heuristic method uses beam search with a simple bounding procedure, and allows us to intensify the search for good solutions.
 
+## MILP model
+
+We implemented a typical MILP model with indicator variables to model the quantiles exactly. This is, of course, extremely difficult to solve.
+In order to obtain faster solution times, we chose not to model the risk per scenario at all, and instead to focus on the quantile value as a function of the interventions present at a given timestep.
+In our simplest model, the function's landscape is built on-demand using lazy constraints when an incumbent solution is found.
+We then introduce new indicator cuts that allow us to strengthen the relaxation at the root node.
+
+## Beam search
+
+The beam search we use is comparatively simple. It makes use of various backtracking methods, restart choices and node choice heuristics. Additionally, we only compute an estimate of the objective function at some stages in order to save time.
+
+
 # Requirements
 
 * Python3
@@ -18,6 +30,6 @@ Simultaneously, our heuristic method uses beam search with a simple bounding pro
 
 Launching
 ```bash
-python3 roadef.py -p INSTANCEFILE -o SOLUTIONFILE
+python3 roadef2020_J3.py -p INSTANCEFILE -o SOLUTIONFILE
 ```
 will execute the auxiliary scripts and export the solution.
