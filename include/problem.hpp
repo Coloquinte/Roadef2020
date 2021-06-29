@@ -82,6 +82,7 @@ class Resources {
     const std::vector<std::vector<double> > &lowerBound() const { return lowerBound_; }
     const std::vector<std::vector<double> > &upperBound() const { return upperBound_; }
     const std::vector<std::vector<std::vector<ResourceContribution> > > &demands() const { return demands_; }
+    const std::vector<std::vector<double> > &usage() const { return currentUsage_; }
 
     double value() const { return currentValue_; }
 
@@ -144,6 +145,7 @@ class QuantileRisk {
     int maxStartTime(int intervention) const { return contribs_[intervention].size(); }
 
     const std::vector<std::vector<std::vector<RiskContribution> > > &contribs() const { return contribs_; }
+    const std::vector<double> &excess() const { return currentExcesses_; }
 
     double value() const { return currentValue_; }
 

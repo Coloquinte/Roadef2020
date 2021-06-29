@@ -33,12 +33,16 @@ class BsOptimizer {
     std::vector<int> getSearchPriorityDemandRanking();
     std::vector<int> getSearchPriorityRiskRanking();
     std::vector<int> getSearchPriorityRandom();
+    std::vector<int> getSearchPriorityOverflowCost();
     std::vector<int> getRestartPriority();
     std::vector<int> getRestartPriorityConflicts();
     std::vector<int> getRestartPriorityTimesteps();
     std::vector<int> getRestartPriorityRandom();
+    std::vector<int> getRestartPriorityOverflowCost();
     std::vector<int> getInterventionOrderRandom();
     std::vector<int> getTimestepOrderRandom();
+    std::vector<int> getTimestepOrderOverflowCost();
+    std::vector<int> getInterventionOrderFromTimestepOrder(const std::vector<int> &timestepOrder);
 
     // Beam exploration
     void runBeam(int beamWidth, int backtrackDepth);

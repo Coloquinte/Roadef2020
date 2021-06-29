@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <cassert>
 #include <chrono>
+#include <tuple>
 
 using namespace std;
 
@@ -303,13 +304,16 @@ int BsOptimizer::getRestartDepthRandomGeom() {
 }
 
 vector<int> BsOptimizer::getSearchPriority() {
-    int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    int choice = uniform_int_distribution<int>(0, 3)(rgen);
     choiceSearchPriority = choice;
     if (choice == 0) {
         return getSearchPriorityRandom();
     }
     else if (choice == 1) {
         return getSearchPriorityDemandRanking();
+    }
+    else if (choice == 2) {
+        return getSearchPriorityOverflowCost();
     }
     else {
         return getSearchPriorityRiskRanking();
@@ -341,14 +345,23 @@ vector<int> BsOptimizer::getSearchPriorityRandom() {
     return getInterventionOrderRandom();
 }
 
+vector<int> BsOptimizer::getSearchPriorityOverflowCost() {
+    if (!solutionFound()) return getInterventionOrderRandom();
+    vector<int> timesteps = getTimestepOrderOverflowCost();
+    return getInterventionOrderFromTimestepOrder(timesteps);
+}
+
 vector<int> BsOptimizer::getRestartPriority() {
-    int choice = uniform_int_distribution<int>(0, 2)(rgen);
+    int choice = uniform_int_distribution<int>(0, 3)(rgen);
     choiceRestartPriority = choice;
     if (choice == 0) {
         return getRestartPriorityRandom();
     }
     else if (choice == 1) {
         return getRestartPriorityConflicts();
+    }
+    else if (choice == 2) {
+        return getRestartPriorityOverflowCost();
     }
     else {
         return getRestartPriorityTimesteps();
@@ -415,9 +428,13 @@ vector<int> BsOptimizer::getRestartPriorityTimesteps() {
     // Restart all interventions that are present here
     if (!solutionFound()) return getInterventionOrderRandom();
     vector<int> timesteps = getTimestepOrderRandom();
+    return getInterventionOrderFromTimestepOrder(timesteps);
+}
+
+vector<int> BsOptimizer::getInterventionOrderFromTimestepOrder(const vector<int> &timestepOrder) {
     vector<char> interventionSeen(pb.nbInterventions(), 0);
     vector<int> order;
-    for (int t : timesteps) {
+    for (int t : timestepOrder) {
         vector<int> interventionsPresent = pb.presence(t);
         shuffle(interventionsPresent.begin(), interventionsPresent.end(), rgen);
         for (int i : interventionsPresent) {
@@ -437,6 +454,38 @@ vector<int> BsOptimizer::getRestartPriorityTimesteps() {
     return order;
 }
 
+vector<double> computeOverflowEstimate(const Resources &resources) {
+    int nbTimesteps = resources.nbTimesteps();
+    int nbResources = resources.nbResources();
+    const std::vector<std::vector<double> > &lowerBound = resources.lowerBound();
+    const std::vector<std::vector<double> > &upperBound = resources.upperBound();
+    const std::vector<std::vector<double> > &usage = resources.usage();
+    vector<vector<double> > overflows(nbResources, vector<double>(nbTimesteps, 0.0));
+    for (int i = 0; i < nbResources; ++i) {
+        for (int j = 0; j < nbTimesteps; ++j) {
+            overflows[i][j] = max(usage[i][j] - upperBound[i][j], 0.0) + max(lowerBound[i][j] - usage[i][j], 0.0);
+        }
+    }
+    // TODO: normalize
+    vector<double> overflowEstimate(nbTimesteps, 0.0);
+    for (int i = 0; i < nbResources; ++i) {
+        for (int j = 0; j < nbTimesteps; ++j) {
+            overflowEstimate[j] += overflows[i][j];
+        }
+    }
+    return overflowEstimate;
+}
+
+vector<double> computeCostEstimate(const QuantileRisk &risk) {
+    return risk.excess();
+}
+
+vector<int> BsOptimizer::getRestartPriorityOverflowCost() {
+    if (!solutionFound()) return getInterventionOrderRandom();
+    vector<int> timesteps = getTimestepOrderOverflowCost();
+    return getInterventionOrderFromTimestepOrder(timesteps);
+}
+
 vector<int> BsOptimizer::getRestartPriorityRandom() {
     return getInterventionOrderRandom();
 }
@@ -448,6 +497,22 @@ vector<int> BsOptimizer::getInterventionOrderRandom() {
     }
     shuffle(order.begin(), order.end(), rgen);
     return order;
+}
+
+vector<int> BsOptimizer::getTimestepOrderOverflowCost() {
+    if (!solutionFound()) return getTimestepOrderRandom();
+    vector<double> overflows = computeOverflowEstimate(pb.resources());
+    vector<double> costs = computeCostEstimate(pb.quantileRisk());
+    vector<tuple<double, double, int> > sorter;
+    for (int i = 0; i < pb.nbTimesteps(); ++i) {
+        sorter.emplace_back(-overflows[i], -costs[i], i);
+    }
+    sort(sorter.begin(), sorter.end());
+    vector<int> timestepOrder;
+    for (auto t : sorter) {
+        timestepOrder.push_back(std::get<2>(t));
+    }
+    return timestepOrder;
 }
 
 vector<int> BsOptimizer::getTimestepOrderRandom() {
