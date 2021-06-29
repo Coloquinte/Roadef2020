@@ -540,7 +540,7 @@ void Problem::set(const std::vector<int> &startTimes) {
     }
 }
 
-Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold) const {
+Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Objective threshold, bool skipQuantile) const {
     assert (startTimes_[intervention] == -1);
     Objective ret = Objective::Min();
     int exclusionObj = exclusions_.objectiveIfSet(intervention, startTime);
@@ -558,8 +558,14 @@ Problem::Objective Problem::objectiveIfSet(int intervention, int startTime, Obje
     // Shortcut worse min risk
     if (threshold.betterThan(ret))
         return ret;
-    double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);
-    ret.risk = meanRiskObj + quantileRiskObj;
+    if (skipQuantile) {
+        double quantileRiskObj = quantileRisk_.value();
+        // TODO: simple estimate of the additional risk
+        ret.risk = meanRiskObj + quantileRiskObj;
+    } else {
+        double quantileRiskObj = quantileRisk_.objectiveIfSet(intervention, startTime);
+        ret.risk = meanRiskObj + quantileRiskObj;
+    }
     return ret;
 }
 

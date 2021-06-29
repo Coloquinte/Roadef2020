@@ -202,19 +202,34 @@ bool BsOptimizer::alreadyAssigned(int intervention) const {
 }
 
 void BsOptimizer::expandBeam(int intervention, int beamWidth) {
-    vector<NextBeamElement> beamTrials;
+    vector<NextBeamElement> beamTrialsFast;
+    int beamWidthFast = 2 * beamWidth;
+    // Quick pass with a quick risk evaluation
     for (int i = 0; i < beam.size(); ++i) {
         assert (beam[i][intervention] == -1);
         pb.set(beam[i]);
         for (int t = 0; t < pb.maxStartTime(intervention); ++t) {
-            // Insert in the sorted vector
-            Problem::Objective threshold = beamTrials.size() < beamWidth ? Problem::Objective() : beamTrials.back().obj;
-            NextBeamElement elt (i, t, pb.objectiveIfSet(intervention, t, threshold));
-            auto it = std::upper_bound(beamTrials.begin(), beamTrials.end(), elt);
-            beamTrials.insert(it, elt);
-            if (beamTrials.size() > beamWidth) {
-                beamTrials.pop_back();
+            Problem::Objective threshold = beamTrialsFast.size() < beamWidthFast ? Problem::Objective() : beamTrialsFast.back().obj;
+            NextBeamElement elt (i, t, pb.objectiveIfSet(intervention, t, threshold, true /* skipping the quantile computation */ ));
+            // Insert in the sorted vector, then only keep beamWidthFast elements
+            auto it = std::upper_bound(beamTrialsFast.begin(), beamTrialsFast.end(), elt);
+            beamTrialsFast.insert(it, elt);
+            if (beamTrialsFast.size() > beamWidthFast) {
+                beamTrialsFast.pop_back();
             }
+        }
+    }
+    // Second pass with the actual risk measure
+    vector<NextBeamElement> beamTrials;
+    for (NextBeamElement candidate : beamTrialsFast) {
+        int i = candidate.node;
+        int t = candidate.time;
+        Problem::Objective threshold = beamTrials.size() < beamWidth ? Problem::Objective() : beamTrials.back().obj;
+        NextBeamElement elt (i, t, pb.objectiveIfSet(intervention, t, threshold));
+        auto it = std::upper_bound(beamTrials.begin(), beamTrials.end(), elt);
+        beamTrials.insert(it, elt);
+        if (beamTrials.size() > beamWidth) {
+            beamTrials.pop_back();
         }
     }
     vector<vector<int> > newBeam;
