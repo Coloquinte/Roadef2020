@@ -232,6 +232,7 @@ class Problem:
         self.quantile_risk_dec = [m.continuous_var(name=f"qr_{i}") for i in range(self.nb_timesteps)]
         self.indicator_dec = []
         excess_risk_expr = []
+        self.scenario_risk = []
         for i in range(self.nb_timesteps):
             if self.args.skip_quantile_risk:
                 continue
@@ -251,13 +252,16 @@ class Problem:
             if args.full and self.quantile_risk.nb_scenarios[i] > 1:
                 # Complete case, without lazy constraints: use indicator variables
                 indicators = []
+                self.scenario_risk.append([])
                 for s in range(self.quantile_risk.nb_scenarios[i]):
-                    expr = [self.quantile_risk_dec[i]]
+                    self.scenario_risk[i].append(m.continuous_var(name=f"sr_{i}_{s}"))
+                    expr = [self.scenario_risk[i][s]]
                     for intervention in range(self.nb_interventions):
                         for tp in self.quantile_risk.risk_origin[i][intervention]:
                             expr.append(-tp.risk[s] * self.intervention_decisions[intervention][tp.time])
+                    m.add_constraint(m.sum(expr) == 0)
                     indicator = m.binary_var(name=f"ind_{i}_{s}")
-                    c = m.add_indicator(indicator, m.sum(expr) >= 0.0)
+                    c = m.add_indicator(indicator, self.quantile_risk_dec[i] - self.scenario_risk[i][s] >= 0.0)
                     indicators.append(indicator)
                 m.add_constraint(m.sum(indicators) >= self.quantile_risk.quantile_scenario[i] + 1)
                 self.indicator_dec.append(indicators)
