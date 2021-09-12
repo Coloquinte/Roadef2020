@@ -188,6 +188,19 @@ class Problem:
         pos = self.quantile_risk.quantile_scenario[time]
         return np.sort(np.argpartition(risk, pos)[pos:])
 
+    def compute_scenario_bounds(self):
+        self.scenario_bounds = []
+        for t in range(self.nb_timesteps):
+            self.scenario_bounds.append([])
+            for s in range(self.quantile_risk.nb_scenarios[t]):
+                sum_contrib = 0.0
+                for i in range(self.nb_interventions):
+                    max_contrib = 0.0
+                    for tp in self.quantile_risk.risk_origin[t][i]:
+                        max_contrib = max(max_contrib, tp.risk[s])
+                    sum_contrib += max_contrib
+                self.scenario_bounds[-1].append(sum_contrib)
+
     def create_model(self):
         m = Model(name="RTE_planification_Lazy")
         self.model = m
@@ -254,7 +267,7 @@ class Problem:
                 indicators = []
                 self.scenario_risk.append([])
                 for s in range(self.quantile_risk.nb_scenarios[i]):
-                    self.scenario_risk[i].append(m.continuous_var(name=f"sr_{i}_{s}"))
+                    self.scenario_risk[i].append(m.continuous_var(name=f"sr_{i}_{s}", lb=0, ub=self.scenario_bounds[i][s]))
                     expr = [self.scenario_risk[i][s]]
                     for intervention in range(self.nb_interventions):
                         for tp in self.quantile_risk.risk_origin[i][intervention]:
@@ -548,7 +561,7 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
         if tot_mean_risk + tot_excess_risk < pb.best_value:
             pb.best_value = tot_mean_risk + tot_excess_risk
             if self.pb.args.verbosity >= 2:
-                print(f"MILP: new solution with risk {self.best_value:.5f} ({tot_mean_risk:.2f} + {tot_excess_risk:.2f})")
+                print(f"MILP: new solution with risk {pb.best_value:.5f} ({tot_mean_risk:.2f} + {tot_excess_risk:.2f})")
             self.write_solution(start_times)
 
         if pb.log_file is not None:
@@ -644,6 +657,7 @@ def run(args):
     pb = Problem(instance, args)
     if args.verbosity >= 1:
         print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
+    pb.compute_scenario_bounds()
 
     if args.two_solves:
         args.skip_quantile_risk = True
