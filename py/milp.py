@@ -201,6 +201,34 @@ class Problem:
                     sum_contrib += max_contrib
                 self.scenario_bounds[-1].append(sum_contrib)
 
+    def compute_scenario_bounds_milp(self):
+        self.scenario_bounds = []
+        for t in range(self.nb_timesteps):
+            self.scenario_bounds.append([])
+            for s in range(self.quantile_risk.nb_scenarios[t]):
+                m = Model(name=f"Scenario_bound_{t}_{s}")
+                # Create decisions to model t
+                intervention_decisions = [[m.binary_var(name=f"i_{i}_{t}") for t in range(s)] for i, s in enumerate(self.max_start_times)]
+                for ivars in intervention_decisions:
+                    m.add_constraint(m.sum(ivars) <= 1)
+                # Look for maximum scenario impact
+                decisions = []
+                for i in range(self.nb_interventions):
+                    for tp in self.quantile_risk.risk_origin[t][i]:
+                        decisions.append(tp.risk[s] * intervention_decisions[i][tp.time])
+                m.max_risk = m.sum(decisions)
+                m.maximize(m.max_risk)
+                # Under resource constraints
+                for resource_time in range(self.nb_timesteps):
+                    for resource in range(self.nb_resources):
+                        decisions = []
+                        for intervention_time, intervention, usage in self.resources.resource_usage[resource][resource_time]:
+                            decisions.append(usage * intervention_decisions[intervention][intervention_time])
+                        m.add_constraint(m.sum(decisions) <= self.resources.upper_bounds[resource_time, resource])
+                        m.add_constraint(m.sum(decisions) >= self.resources.lower_bounds[resource_time, resource])
+                m.solve()
+                self.scenario_bounds[-1].append(m.max_risk.solution_value)
+
     def create_model(self):
         m = Model(name="RTE_planification_Lazy")
         self.model = m
