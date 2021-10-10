@@ -22,6 +22,7 @@ from docplex.mp.callbacks.cb_mixin import ConstraintCallbackMixin
 
 import common
 import constraint_gen
+import quantile
 
 RESOURCES_STR = 'Resources'
 SEASONS_STR = 'Seasons'
@@ -314,8 +315,9 @@ class Problem:
         m.minimize(m.mean_risk_objective + m.excess_risk_objective)
 
         # Additional useful constraints for better bounds
-        self.add_simple_root_constraints()
+        #self.add_simple_root_constraints()
         if args.root_constraints:
+            #self.add_simple_root_constraints()
             self.add_root_constraints()
 
         if self.args.verbosity >= 2:
@@ -329,19 +331,21 @@ class Problem:
         else:
             params.mip.tolerances.mipgap = 1.0e-6
         params.mip.limits.cutsfactor = 100.0
-        params.emphasis.mip = 2  # Optimality
+        params.mip.display = 3
+        #params.emphasis.mip = 2  # Optimality
         params.mip.strategy.file = 2  # Reduce memory usage by saving to disk
         params.workmem = 2048
         params.mip.limits.treememory = 60000  # Bound disk usage
         params.randomseed = args.seed
 
+        if args.root_cuts:
+            cut_cb = m.register_callback(QuantileCutCallback)
+            cut_cb.register_pb(self)
+
         # Lazy constraints
         if not args.full and len(excess_risk_expr) >= 1:
             lazyct_cb = m.register_callback(QuantileLazyCallback)
             lazyct_cb.register_pb(self)
-            if args.root_cuts:
-                cut_cb = m.register_callback(QuantileCutCallback)
-                cut_cb.register_pb(self)
 
         # Case where a solution is already given
         if args.reoptimize:
@@ -394,8 +398,8 @@ class Problem:
                         continue
                     subset = self.compute_quantile_subset(tp.risk, i)
                     contrib = tp.risk[subset].min()
-                    abs_margin = 0.01
-                    rel_margin = 0.05
+                    abs_margin = 1.0e-6
+                    rel_margin = 1.0e-6
                     if contrib <= max_contrib_seen[intervention] * (1.0 + rel_margin) + abs_margin:
                         # Not that good compared to cases we have seen with other subsets already
                         continue
@@ -578,12 +582,13 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                           f"(value {quantile_risk:.4f}, target {model_quantile_risk:.4f}) "
                           f"for {intervention_times}", file=pb.log_file)
                 
-                rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
-                self.add_constraint(time, rhs, coefs, decisions)
                 if pb.args.subset_constraints:
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=False)
                     self.add_constraint(time, rhs, coefs, decisions)
                     rhs, coefs, decisions = pb.get_subset_lazy_constraint(time, intervention_times, extend=True)
+                    self.add_constraint(time, rhs, coefs, decisions)
+                else:
+                    rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
         if tot_mean_risk + tot_excess_risk < pb.best_value:
@@ -612,13 +617,13 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
         self.pb = pb
         self.nb_fail = [0 for i in range(pb.nb_timesteps)]
 
-    def add_constraint(self, time, rhs, coefs, decisions):
+    def add_constraint(self, time, constant, coefs):
         pb = self.pb
-        var_decisions = [pb.intervention_decisions[it[0]][it[1]].index for it in decisions]
-        coefs = list(coefs)
+        var_decisions = [d.index for d in pb.scenario_risk[time]]
         var_decisions.append(pb.quantile_risk_dec[time].index)
-        coefs.append(1.0)
-        self.add([var_decisions, coefs], "G", rhs)
+        coefs = list(coefs)
+        coefs.append(-1.0)
+        self.add([var_decisions, coefs], "L", -constant)
         self.nb_constraints += 1
 
     def __call__(self):
@@ -631,46 +636,49 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
             return
         if pb.log_file is not None:
             call_start_time = time_mod.perf_counter()
-        intervention_values = [
-            self.get_values([d.index for d in pb.intervention_decisions[i]])
-            for i in range(pb.nb_interventions)]
-        values = dict()
-        for i in range(pb.nb_interventions):
-            values[i] = dict()
-            for t, v in enumerate(intervention_values[i]):
-                values[i][t] = v
         quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
-        quantile_bounds = self.get_upper_bounds([d.index for d in pb.quantile_risk_dec])
         for time in range(pb.nb_timesteps):
-            if self.nb_fail[time] >= 2:
+            if self.nb_fail[time] >= 4:
                 continue
-            b_coef, a_coefs, value = constraint_gen.UserCutCoefModeler.run(pb, time, values, cutoff=quantile_bounds[time], time_limit=20)
-            if value is None:
-                self.nb_fail[time] += 1
-                continue
-            if value < quantile_values[time] + 1.0e-6:
-                self.nb_fail[time] += 1
-                continue
-            rhs = b_coef
-            decisions = []
-            coefs = []
-            for i, i_coefs in a_coefs.items():
-                for t, coef in i_coefs.items():
-                    decisions.append( (i, t) )
-                    coefs.append(-coef)
-            interventions_used = set(decisions)
-            for it, risk_min in self.pb.quantile_risk.min_risk_from_times[time].items():
-                if it not in interventions_used:
-                    decisions.append(it)
-                    coefs.append(-risk_min)
-            #print(f"Found more agressive case at time {time} with {len(decisions)} decisions: {value} vs {quantile_values[time]}")
-            self.add_constraint(time, rhs, coefs, decisions)
+            scenario_values = np.array(self.get_values([d.index for d in pb.scenario_risk[time]]))
+            current_quantile = quantile_values[time]
+            lbs = np.zeros(pb.quantile_risk.nb_scenarios[time])
+            ubs = np.array(pb.scenario_bounds[time])
+            k = pb.quantile_risk.nb_scenarios[time] - pb.quantile_risk.quantile_scenario[time]
+            scenario_values = np.maximum(scenario_values, lbs)
+            scenario_values = np.minimum(scenario_values, ubs)
+            assert 1 <= k <= pb.quantile_risk.nb_scenarios[time]
+            if pb.log_file is not None:
+                print(f"Look for the cut at time {time}, quantile {k}, ub {ubs.mean():.2f}, val {current_quantile:.2f}", file=pb.log_file)
+                print(k, file=pb.log_file)
+                print(scenario_values, file=pb.log_file)
+                print(lbs, file=pb.log_file)
+                print(ubs, file=pb.log_file)
+                print(current_quantile, file=pb.log_file)
+                pb.log_file.flush()
 
+            constraint = quantile.most_violated_constraint(k, scenario_values, lbs, ubs, threshold=current_quantile+1.0e-6)
+            if constraint is None:
+                self.nb_fail[time] += 1
+                continue
+            coefs, constant = constraint
+            val = constant
+            for c, s in zip(coefs, scenario_values):
+                val += c * s
+            actual_quantile = quantile.quantile(k, scenario_values)
+
+            if pb.log_file is not None:
+                print(f"Found a valid cut at time {time} ({val:.2f} vs {current_quantile:.2f}, actual {actual_quantile:.2f})", file=pb.log_file)
+                pb.log_file.flush()
+            assert actual_quantile >= val - 1.0e-6
+            self.add_constraint(time, constant, coefs)
+ 
         if pb.log_file is not None:
             call_end_time = time_mod.perf_counter()
             print(f"Evaluated cut #{self.nb_calls} "
                   f"in {call_end_time-call_start_time:.2f}s", file=pb.log_file)
             pb.log_file.flush()
+
 
 
 def run(args):
@@ -685,14 +693,15 @@ def run(args):
     pb = Problem(instance, args)
     if args.verbosity >= 1:
         print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
-    pb.compute_scenario_bounds()
+    #pb.compute_scenario_bounds()
 
     if args.two_solves:
         args.skip_quantile_risk = True
         pb.create_model()
         solve_starting_time = time_mod.perf_counter()
         if args.time is not None:
-            safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+            #safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+            safe_limit = args.time
             if safe_limit <= 0.0:
                 print("Not enough time remaining to solve the MILP model")
                 sys.exit(1)
@@ -707,7 +716,8 @@ def run(args):
     pb.create_model()
     solve_starting_time = time_mod.perf_counter()
     if args.time is not None:
-        safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+        #safe_limit = 0.99 * args.time - (solve_starting_time - starting_time)
+        safe_limit = args.time
         if safe_limit <= 0.0:
             print("Not enough time remaining to solve the MILP model")
             sys.exit(1)
