@@ -615,7 +615,6 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
 
     def register_pb(self, pb):
         self.pb = pb
-        self.nb_fail = [0 for i in range(pb.nb_timesteps)]
 
     def add_constraint(self, time, constant, coefs):
         pb = self.pb
@@ -632,13 +631,13 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
             return
         pb = self.pb
         self.nb_calls += 1
-        if self.nb_calls >= 50:
-            return
+        #if self.nb_calls >= 50:
+        #    return
         if pb.log_file is not None:
             call_start_time = time_mod.perf_counter()
         quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
         for time in range(pb.nb_timesteps):
-            if self.nb_fail[time] >= 4:
+            if pb.quantile_risk.nb_scenarios[time] <= 1:
                 continue
             scenario_values = np.array(self.get_values([d.index for d in pb.scenario_risk[time]]))
             current_quantile = quantile_values[time]
@@ -659,7 +658,6 @@ class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
 
             constraint = quantile.most_violated_constraint(k, scenario_values, lbs, ubs, threshold=current_quantile+1.0e-6)
             if constraint is None:
-                self.nb_fail[time] += 1
                 continue
             coefs, constant = constraint
             val = constant
@@ -693,7 +691,7 @@ def run(args):
     pb = Problem(instance, args)
     if args.verbosity >= 1:
         print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
-    #pb.compute_scenario_bounds()
+    pb.compute_scenario_bounds()
 
     if args.two_solves:
         args.skip_quantile_risk = True
