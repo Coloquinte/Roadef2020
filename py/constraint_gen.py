@@ -13,6 +13,54 @@ from docplex.mp.callbacks.cb_mixin import ConstraintCallbackMixin
 from docplex.util.status import JobSolveStatus
 
 
+class SubsetCutCoefModeler:
+    @staticmethod
+    def run(pb, time, values):
+        modeler = SubsetCutCoefModeler(pb, time, values)
+        modeler.create_model()
+        modeler.m.solver()
+        if len(modeler.intervention_risks) == 0:
+            # No variable at all
+            return None, None, None
+        return modeler.get_result()
+
+    def __init__(self, problem, time, values):
+        self.pb = problem
+        self.time = time
+        self.intervention_risks = None
+        self.values = values
+
+        # Model and decisions
+        self.m = Model(name="user_cut_coef_model")
+        self.subset_decs = None
+        self.intervention_vals = None
+
+    def create_model(self):
+        self.subset_decs = [self.m.binary_var(name=f"in_subset_{i}") for i in range(self.pb.quantile_risk.nb_scenarios[self.time])]
+        k = self.pb.quantile_risk.nb_scenarios[time] - self.pb.quantile_risk.quantile_scenario[time]
+        self.m.add_constraint(self.m.sum(self.subset_decs) == k)
+        self.intervention_vals = list()
+        for intervention in range(self.pb.nb_interventions):
+            if intervention not in self.values:
+                continue
+            for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
+                if tp.time not in self.values[intervention]:
+                    continue
+                if self.values[intervention][tp.time] <= 1.0e-4:
+                    continue
+                dec = self.m.continuous_var(name=f"intervention_bound_{intervention}_{tp.time}")
+                self.intervention_vals.append(dec * self.values[intervention][tp.time])
+                for i, risk in enumerate(tp.risk):
+                    self.m.add_indicator(self.subset_decs[i], dec <= risk)
+        self.m.maximize(self.m.sum(self.intervention_vals))
+
+     def get_result(self):
+        values = self.get_values([dec.index for dec in self.subset_decs])
+        values = [x > 0.5 for x in values]
+        print(values)
+        return None, None, None
+
+
 class UserCutCoefModeler:
     @staticmethod
     def run(pb, time, values, cutoff=None, time_limit=None):
@@ -69,7 +117,7 @@ class UserCutCoefModeler:
                 if intervention not in self.intervention_risks:
                     self.intervention_risks[intervention] = dict()
                 self.intervention_risks[intervention][tp.time] = tp.risk
-     
+
     def create_decisions(self):
         # Create the decision variables, including a dummy integer to enable lazy constraint support
         self.m.binary_var(name="dummy")
