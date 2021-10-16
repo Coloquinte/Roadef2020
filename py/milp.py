@@ -482,6 +482,9 @@ class Problem:
             risk += self.quantile_risk.risk_from_times[time][it]
         return risk[subset].min()
 
+    def check_subset(self, time, subset):
+        assert len(subset) == self.quantile_risk.nb_scenarios[time] - self.quantile_risk.quantile_scenario[time]
+
     def get_lazy_constraint(self, time, intervention_times, extend=False):
         """
         Get a simple lazy constraint on these intervention times.
@@ -508,6 +511,7 @@ class Problem:
         Get a subset lazy constraint for these intervention times.
         """
         subset = self.get_quantile_risk_subset(time, intervention_times)
+        self.check_subset(time, subset)
         quantile_risk = self.get_quantile_risk(time, intervention_times)
         decisions = [it for it in intervention_times]
         coefs = []
@@ -531,6 +535,7 @@ class Problem:
         """
         Get a subset constraint for these intervention times
         """
+        self.check_subset(time, subset)
         rhs = 0.0
         quantile_risk = self.get_quantile_risk(time, intervention_times)
         decisions = [it for it in intervention_times]

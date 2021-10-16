@@ -38,18 +38,23 @@ class SubsetCutCoefModeler:
     def create_model(self):
         self.subset_decs = [self.m.binary_var(name=f"in_subset_{i}") for i in range(self.pb.quantile_risk.nb_scenarios[self.time])]
         k = self.pb.quantile_risk.nb_scenarios[self.time] - self.pb.quantile_risk.quantile_scenario[self.time]
+        scenario_index = self.pb.quantile_risk.quantile_scenario[self.time]
         self.m.add_constraint(self.m.sum(self.subset_decs) == k)
         self.intervention_vals = list()
         for intervention in self.values.keys():
             for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
                 if tp.time not in self.values[intervention]:
                     continue
-                if self.values[intervention][tp.time] <= 1.0e-4:
+                frac_value = self.values[intervention][tp.time]
+                if frac_value <= 1.0e-4:
                     continue
                 dec = self.m.continuous_var(name=f"intervention_bound_{intervention}_{tp.time}")
-                self.intervention_vals.append(dec * self.values[intervention][tp.time])
+                self.intervention_vals.append(dec)
                 for i, risk in enumerate(tp.risk):
-                    self.m.add_indicator(self.subset_decs[i], dec <= risk)
+                    self.m.add_indicator(self.subset_decs[i], dec <= frac_value * risk)
+                # Trivial constraint to strengthen it a bit
+                #simple_bound = np.argpartition(tp.risk, scenario_index)[scenario_index]
+                #self.m.add_constraint(dec <= frac_value * simple_bound)
         self.m.total_risk = self.m.sum(self.intervention_vals)
         self.m.maximize(self.m.total_risk)
 
