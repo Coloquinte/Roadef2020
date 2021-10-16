@@ -338,8 +338,11 @@ class Problem:
         params.mip.limits.treememory = 60000  # Bound disk usage
         params.randomseed = args.seed
 
-        if args.root_cuts:
-            cut_cb = m.register_callback(QuantileCutOptimalCallback)
+        if args.subset_cuts:
+            cut_cb = m.register_callback(QuantileCutSubsetCallback)
+            cut_cb.register_pb(self)
+        if args.full and args.polyhedral_cuts:
+            cut_cb = m.register_callback(QuantileCutPolyhedralCallback)
             cut_cb.register_pb(self)
 
         # Lazy constraints
@@ -619,7 +622,7 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
             pb.log_file.flush()
 
 
-class QuantileCutOptimalCallback(ConstraintCallbackMixin, UserCutCallback):
+class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
     def __init__(self, env):
         UserCutCallback.__init__(self, env)
         ConstraintCallbackMixin.__init__(self)
@@ -832,11 +835,10 @@ if __name__ == '__main__':
     g2.add_argument('--subset-constraints', action='store_true', dest="subset_constraints", help="Enable subset lazy constraints")
     g2.add_argument('--no-subset-constraints', action='store_false', dest="subset_constraints", help="Enable subset lazy constraints")
 
-    g3 = parser.add_mutually_exclusive_group()
-    g3.add_argument('--root-cuts', action='store_true', dest="root_cuts", help="Enable agressive cuts at root node")
-    g3.add_argument('--no-root-cuts', action='store_false', dest="root_cuts", help="Disable agressive cuts at root node")
+    parser.add_argument('--polyhedral-cuts', action='store_true', help="Enable polyhedral cuts at root node")
+    parser.add_argument('--subset-cuts', action='store_true', help="Enable subset cuts during solve")
 
-    parser.set_defaults(root_constraints=True, subset_constraints=True, root_cuts=False)
+    parser.set_defaults(root_constraints=True, subset_constraints=True)
 
     args = parser.parse_args()
     if not args.name and not args.instance_file:
