@@ -15,20 +15,18 @@ from docplex.util.status import JobSolveStatus
 
 class SubsetCutCoefModeler:
     @staticmethod
-    def run(pb, time, values):
-        modeler = SubsetCutCoefModeler(pb, time, values)
+    def run(pb, time, values, quantile_value):
+        modeler = SubsetCutCoefModeler(pb, time, values, quantile_value)
         modeler.create_model()
-        modeler.m.solver()
-        if len(modeler.intervention_risks) == 0:
-            # No variable at all
-            return None, None, None
+        modeler.m.solve()
         return modeler.get_result()
 
-    def __init__(self, problem, time, values):
+    def __init__(self, problem, time, values, quantile_value):
         self.pb = problem
         self.time = time
         self.intervention_risks = None
         self.values = values
+        self.quantile_value = quantile_value
 
         # Model and decisions
         self.m = Model(name="user_cut_coef_model")
@@ -37,7 +35,7 @@ class SubsetCutCoefModeler:
 
     def create_model(self):
         self.subset_decs = [self.m.binary_var(name=f"in_subset_{i}") for i in range(self.pb.quantile_risk.nb_scenarios[self.time])]
-        k = self.pb.quantile_risk.nb_scenarios[time] - self.pb.quantile_risk.quantile_scenario[time]
+        k = self.pb.quantile_risk.nb_scenarios[self.time] - self.pb.quantile_risk.quantile_scenario[self.time]
         self.m.add_constraint(self.m.sum(self.subset_decs) == k)
         self.intervention_vals = list()
         for intervention in range(self.pb.nb_interventions):
@@ -52,13 +50,19 @@ class SubsetCutCoefModeler:
                 self.intervention_vals.append(dec * self.values[intervention][tp.time])
                 for i, risk in enumerate(tp.risk):
                     self.m.add_indicator(self.subset_decs[i], dec <= risk)
-        self.m.maximize(self.m.sum(self.intervention_vals))
+        self.m.total_risk = self.m.sum(self.intervention_vals)
+        self.m.maximize(self.m.total_risk)
 
-     def get_result(self):
-        values = self.get_values([dec.index for dec in self.subset_decs])
+    def get_result(self):
+        values = [dec.solution_value for dec in self.subset_decs]
         values = [x > 0.5 for x in values]
-        print(values)
-        return None, None, None
+        cut_value = self.m.total_risk.solution_value
+        if cut_value > self.quantile_value + 1.0e-4:
+            #print(f"Stronger cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+            return np.array([i for i, x in enumerate(values) if x])
+        else:
+            #print(f"Weaker cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+            return None
 
 
 class UserCutCoefModeler:

@@ -339,7 +339,7 @@ class Problem:
         params.randomseed = args.seed
 
         if args.root_cuts:
-            cut_cb = m.register_callback(QuantileCutCallback)
+            cut_cb = m.register_callback(QuantileCutOptimalCallback)
             cut_cb.register_pb(self)
 
         # Lazy constraints
@@ -518,6 +518,20 @@ class Problem:
                     coefs.append(-risk[subset].min())
         return rhs, coefs, decisions
 
+    def get_subset_constraint(self, time, subset):
+        """
+        Get a subsetlazy constraint for these intervention times.
+        """
+        decisions = []
+        coefs = []
+        rhs = 0.0
+        # Add other interventions and times as required
+        interventions_used = set()
+        for it, risk in self.quantile_risk.risk_from_times[time].items():
+            if it not in interventions_used:
+                decisions.append(it)
+                coefs.append(-risk[subset].min())
+        return rhs, coefs, decisions
 
 class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
     def __init__(self, env):
@@ -605,7 +619,69 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
             pb.log_file.flush()
 
 
-class QuantileCutCallback(ConstraintCallbackMixin, UserCutCallback):
+class QuantileCutOptimalCallback(ConstraintCallbackMixin, UserCutCallback):
+    def __init__(self, env):
+        UserCutCallback.__init__(self, env)
+        ConstraintCallbackMixin.__init__(self)
+        self.pb = None
+        self.nb_calls = 0
+        self.nb_constraints = 0
+
+    def register_pb(self, pb):
+        self.pb = pb
+        self.nb_fail = [0 for i in range(pb.nb_timesteps)]
+        self.subsets = [set() for i in range(pb.nb_timesteps)]
+
+    def add_constraint(self, time, rhs, coefs, decisions):
+        pb = self.pb
+        var_decisions = [pb.intervention_decisions[it[0]][it[1]].index for it in decisions]
+        coefs = list(coefs)
+        var_decisions.append(pb.quantile_risk_dec[time].index)
+        coefs.append(1.0)
+        self.add([var_decisions, coefs], "G", rhs)
+        self.nb_constraints += 1
+
+    def __call__(self):
+        #if self.get_node_ID() != 0:
+        #    # Only at root node, this stuff is heavy enough as it is
+        #    return
+        pb = self.pb
+        self.nb_calls += 1
+        #if self.nb_calls >= 50:
+        #    return
+        if pb.log_file is not None:
+            call_start_time = time_mod.perf_counter()
+        intervention_values = [
+            self.get_values([d.index for d in pb.intervention_decisions[i]])
+            for i in range(pb.nb_interventions)]
+        values = dict()
+        for i in range(pb.nb_interventions):
+            values[i] = dict()
+            for t, v in enumerate(intervention_values[i]):
+                values[i][t] = v
+        quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
+        for time in range(pb.nb_timesteps):
+            if self.nb_fail[time] >= 2:
+                continue
+            subset = constraint_gen.SubsetCutCoefModeler.run(pb, time, values, quantile_value=quantile_values[time])
+            if subset is None:
+                self.nb_fail[time] += 1
+                continue
+            if tuple(subset) in self.subsets[time]:
+                # Due to CPLEX tolerance, we may get the same subset several times
+                continue
+            self.subsets[time].add(tuple(subset))
+            rhs, coefs, decisions = pb.get_subset_constraint(time, subset)
+            self.add_constraint(time, rhs, coefs, decisions)
+
+        if pb.log_file is not None:
+            call_end_time = time_mod.perf_counter()
+            print(f"Evaluated cut #{self.nb_calls} "
+                  f"in {call_end_time-call_start_time:.2f}s", file=pb.log_file)
+            pb.log_file.flush()
+
+
+class QuantileCutPolyhedralCallback(ConstraintCallbackMixin, UserCutCallback):
     def __init__(self, env):
         UserCutCallback.__init__(self, env)
         ConstraintCallbackMixin.__init__(self)
