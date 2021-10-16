@@ -476,6 +476,12 @@ class Problem:
             risk += self.quantile_risk.risk_from_times[time][it]
         return self.compute_quantile_subset(risk, time)
 
+    def get_subset_risk(self, time, intervention_times, subset):
+        risk = np.zeros(self.quantile_risk.nb_scenarios[time])
+        for it in intervention_times:
+            risk += self.quantile_risk.risk_from_times[time][it]
+        return risk[subset].min()
+
     def get_lazy_constraint(self, time, intervention_times, extend=False):
         """
         Get a simple lazy constraint on these intervention times.
@@ -521,15 +527,21 @@ class Problem:
                     coefs.append(-risk[subset].min())
         return rhs, coefs, decisions
 
-    def get_subset_constraint(self, time, subset):
+    def get_subset_constraint(self, time, subset, intervention_times=()):
         """
-        Get a subsetlazy constraint for these intervention times.
+        Get a subset constraint for these intervention times
         """
-        decisions = []
-        coefs = []
         rhs = 0.0
+        quantile_risk = self.get_quantile_risk(time, intervention_times)
+        decisions = [it for it in intervention_times]
+        coefs = []
+        for it in intervention_times:
+            contrib = self.quantile_risk.risk_from_times[time][it][subset].max()
+            coefs.append(-contrib)
+        rhs = quantile_risk + sum(coefs) - self.args.tolerance
+
         # Add other interventions and times as required
-        interventions_used = set()
+        interventions_used = set(intervention_times)
         for it, risk in self.quantile_risk.risk_from_times[time].items():
             if it not in interventions_used:
                 decisions.append(it)
