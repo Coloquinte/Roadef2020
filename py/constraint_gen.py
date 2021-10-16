@@ -41,6 +41,7 @@ class SubsetCutCoefModeler:
         scenario_index = self.pb.quantile_risk.quantile_scenario[self.time]
         self.m.add_constraint(self.m.sum(self.subset_decs) == k)
         self.intervention_vals = list()
+        overall_risk = np.zeros(self.pb.quantile_risk.nb_scenarios[self.time])
         for intervention in self.values.keys():
             for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
                 if tp.time not in self.values[intervention]:
@@ -48,6 +49,7 @@ class SubsetCutCoefModeler:
                 frac_value = self.values[intervention][tp.time]
                 if frac_value <= 1.0e-4:
                     continue
+                overall_risk += frac_value * tp.risk
                 dec = self.m.continuous_var(name=f"intervention_bound_{intervention}_{tp.time}")
                 self.intervention_vals.append(dec)
                 for i, risk in enumerate(tp.risk):
@@ -57,6 +59,27 @@ class SubsetCutCoefModeler:
                 self.m.add_constraint(dec <= frac_value * simple_bound)
         self.m.total_risk = self.m.sum(self.intervention_vals)
         self.m.maximize(self.m.total_risk)
+
+        # Compute a not-too-bad starting point
+        sol = docplex.mp.solution.SolveSolution(self.m)
+        order = np.argpartition(overall_risk, scenario_index)
+        for i in order[:scenario_index]:
+            sol.add_var_value(self.subset_decs[i], 0.0)
+        for i in order[scenario_index:]:
+            sol.add_var_value(self.subset_decs[i], 1.0)
+        subset = order[scenario_index:]
+        start_values = []
+        for intervention in self.values.keys():
+            for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
+                if tp.time not in self.values[intervention]:
+                    continue
+                frac_value = self.values[intervention][tp.time]
+                if frac_value <= 1.0e-4:
+                    continue
+                start_values.append(frac_value * tp.risk[subset].min())
+        for dec, value in zip(self.intervention_vals, start_values):
+            sol.add_var_value(dec, value)
+        self.m.add_mip_start(sol)
 
     def check(self, subset, cut_value):
         actual_value = 0.0
