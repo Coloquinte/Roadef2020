@@ -53,18 +53,32 @@ class SubsetCutCoefModeler:
                 for i, risk in enumerate(tp.risk):
                     self.m.add_indicator(self.subset_decs[i], dec <= frac_value * risk)
                 # Trivial constraint to strengthen it a bit
-                #simple_bound = np.argpartition(tp.risk, scenario_index)[scenario_index]
-                #self.m.add_constraint(dec <= frac_value * simple_bound)
+                simple_bound = np.partition(tp.risk, scenario_index)[scenario_index]
+                self.m.add_constraint(dec <= frac_value * simple_bound)
         self.m.total_risk = self.m.sum(self.intervention_vals)
         self.m.maximize(self.m.total_risk)
+
+    def check(self, subset, cut_value):
+        actual_value = 0.0
+        for intervention in self.values.keys():
+            for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
+                if tp.time not in self.values[intervention]:
+                    continue
+                frac_value = self.values[intervention][tp.time]
+                if frac_value <= 1.0e-4:
+                    continue
+                actual_value += frac_value * tp.risk[subset].min()
+        if np.abs(actual_value - cut_value) >= 1.0e-4:
+            print("WARNING: difference ({cut_value:.2f} vs {actual_value:.2f})")
 
     def get_result(self):
         values = [dec.solution_value for dec in self.subset_decs]
         values = [x > 0.5 for x in values]
         cut_value = self.m.total_risk.solution_value
+        subset = np.array([i for i, x in enumerate(values) if x])
         if cut_value > self.quantile_value + 1.0e-4:
             #print(f"Stronger cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
-            return np.array([i for i, x in enumerate(values) if x])
+            return subset
         else:
             #print(f"Weaker cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
             return None
