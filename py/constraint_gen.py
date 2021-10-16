@@ -17,6 +17,8 @@ class SubsetCutCoefModeler:
     @staticmethod
     def run(pb, time, values, quantile_value):
         modeler = SubsetCutCoefModeler(pb, time, values, quantile_value)
+        if len(modeler.values) == 0:
+            return None
         modeler.create_model()
         modeler.m.solve()
         return modeler.get_result()
@@ -38,9 +40,7 @@ class SubsetCutCoefModeler:
         k = self.pb.quantile_risk.nb_scenarios[self.time] - self.pb.quantile_risk.quantile_scenario[self.time]
         self.m.add_constraint(self.m.sum(self.subset_decs) == k)
         self.intervention_vals = list()
-        for intervention in range(self.pb.nb_interventions):
-            if intervention not in self.values:
-                continue
+        for intervention in self.values.keys():
             for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
                 if tp.time not in self.values[intervention]:
                     continue

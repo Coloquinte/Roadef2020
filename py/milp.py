@@ -656,9 +656,11 @@ class QuantileCutOptimalCallback(ConstraintCallbackMixin, UserCutCallback):
             for i in range(pb.nb_interventions)]
         values = dict()
         for i in range(pb.nb_interventions):
-            values[i] = dict()
             for t, v in enumerate(intervention_values[i]):
-                values[i][t] = v
+                if v > 1.0e-6:
+                    if i not in values:
+                        values[i] = dict()
+                    values[i][t] = v
         quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
         for time in range(pb.nb_timesteps):
             if self.nb_fail[time] >= 2:
