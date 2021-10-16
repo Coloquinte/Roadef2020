@@ -783,7 +783,12 @@ def run(args):
 
     pb = Problem(instance, args)
     if args.verbosity >= 1:
-        print(f"MILP: problem with {pb.nb_interventions} interventions, {pb.nb_resources} resources, {pb.nb_timesteps} timesteps")
+        nb_scenarios = pb.quantile_risk.nb_scenarios.max()
+        print(f"MILP: problem with "
+              f"{pb.nb_interventions} interventions, "
+              f"{pb.nb_resources} resources, "
+              f"{pb.nb_timesteps} timesteps, "
+              f"{nb_scenarios} scenarios")
     pb.compute_scenario_bounds()
 
     if args.two_solves:
