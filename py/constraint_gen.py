@@ -18,20 +18,16 @@ class HeuristicSubsetSolver:
         self.mat = mat
         self.n = mat.shape[0]
         self.k = k
-        self.subset = np.zeros(self.n, dtype=bool)
-        self.subset[:k] = True
-
-    @property
-    def value(self):
-        return self.mat[self.subset].min(axis=0).sum()
+        self.subset = None
 
     def compute_value(self, subset):
         return self.mat[subset].min(axis=0).sum()
 
     def restart(self):
-        self.subset[:] = False
+        self.subset = np.zeros(self.n, dtype=bool)
         indices = np.random.choice(range(self.n), self.k, replace=False)
         self.subset[indices] = True
+        self.value = self.compute_value(self.subset)
 
     def try_move(self):
         from_ind = np.random.choice(np.where(self.subset)[0])
@@ -39,28 +35,49 @@ class HeuristicSubsetSolver:
         new_subset = np.copy(self.subset)
         new_subset[from_ind] = False
         new_subset[to_ind] = True
-        if self.compute_value(new_subset) >= self.value:
+        new_value = self.compute_value(new_subset)
+        if new_value >= self.value:
             self.subset = new_subset
+            self.value = new_value
+
+    def extend_subset(self, subset):
+        assert subset.sum() < self.k
+        vals = self.mat[subset].min(axis=0, keepdims=True)
+        incumbents = np.minimum(self.mat[~subset], vals).sum(axis=1)
+        to_ind = np.where(~subset)[0][np.argmax(incumbents)]
+        subset[to_ind] = True
 
     def best_move(self):
         from_ind = np.random.choice(np.where(self.subset)[0])
         new_subset = np.copy(self.subset)
         new_subset[from_ind] = False
-        vals = self.mat[new_subset].min(axis=0, keepdims=True)
-        incumbents = np.minimum(self.mat[~new_subset], vals).sum(axis=1)
-        to_ind = np.where(~new_subset)[0][np.argmax(incumbents)]
-        new_subset[to_ind] = True
+        self.extend_subset(new_subset)
         self.subset = new_subset
+        self.value = self.compute_value(new_subset)
+
+    def greedy(self, nb):
+        nb = min(nb, self.k)
+        from_ind = np.random.choice(np.where(self.subset)[0], nb, replace=False)
+        new_subset = np.copy(self.subset)
+        new_subset[from_ind] = False
+        for i in range(nb):
+            self.extend_subset(new_subset)
+        new_value = self.compute_value(new_subset)
+        if new_value >= self.value:
+            self.subset = new_subset
+            self.value = new_value
 
     def solve(self):
         candidates = []
-        for t in range(10):
-            self.restart()
-            for i in range(100):
+        self.restart()
+        for i in range(1000):
+            choice = np.random.rand()
+            if choice <= 0.8:
                 self.best_move()
-            candidates.append(self.subset)
-        vals = [self.compute_value(s) for s in candidates]
-        self.subset = candidates[np.argmax(vals)]
+            elif choice <= 0.95:
+                self.greedy(2)
+            else:
+                self.greedy(3)
 
 
 class SubsetCutCoefModeler:
