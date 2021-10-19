@@ -13,6 +13,56 @@ from docplex.mp.callbacks.cb_mixin import ConstraintCallbackMixin
 from docplex.util.status import JobSolveStatus
 
 
+class HeuristicSubsetSolver:
+    def __init__(self, mat, k):
+        self.mat = mat
+        self.n = mat.shape[0]
+        self.k = k
+        self.subset = np.zeros(self.n, dtype=bool)
+        self.subset[:k] = True
+
+    @property
+    def value(self):
+        return self.mat[self.subset].min(axis=0).sum()
+
+    def compute_value(self, subset):
+        return self.mat[subset].min(axis=0).sum()
+
+    def restart(self):
+        self.subset[:] = False
+        indices = np.random.choice(range(self.n), self.k, replace=False)
+        self.subset[indices] = True
+
+    def try_move(self):
+        from_ind = np.random.choice(np.where(self.subset)[0])
+        to_ind = np.random.choice(np.where(~self.subset)[0])
+        new_subset = np.copy(self.subset)
+        new_subset[from_ind] = False
+        new_subset[to_ind] = True
+        if self.compute_value(new_subset) >= self.value:
+            self.subset = new_subset
+
+    def best_move(self):
+        from_ind = np.random.choice(np.where(self.subset)[0])
+        new_subset = np.copy(self.subset)
+        new_subset[from_ind] = False
+        vals = self.mat[new_subset].min(axis=0, keepdims=True)
+        incumbents = np.minimum(self.mat[~new_subset], vals).sum(axis=1)
+        to_ind = np.where(~new_subset)[0][np.argmax(incumbents)]
+        new_subset[to_ind] = True
+        self.subset = new_subset
+
+    def solve(self):
+        candidates = []
+        for t in range(10):
+            self.restart()
+            for i in range(100):
+                self.best_move()
+            candidates.append(self.subset)
+        vals = [self.compute_value(s) for s in candidates]
+        self.subset = candidates[np.argmax(vals)]
+
+
 class SubsetCutCoefModeler:
     @staticmethod
     def run(pb, time, values, quantile_value):
@@ -80,6 +130,28 @@ class SubsetCutCoefModeler:
         for dec, value in zip(self.intervention_vals, start_values):
             sol.add_var_value(dec, value)
         self.m.add_mip_start(sol)
+
+    def solve_heuristic(self):
+        n = self.pb.quantile_risk.nb_scenarios[self.time]
+        k = n - self.pb.quantile_risk.quantile_scenario[self.time]
+        risk_mat = []
+        for intervention in self.values.keys():
+            for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
+                if tp.time not in self.values[intervention]:
+                    continue
+                frac_value = self.values[intervention][tp.time]
+                if frac_value <= 1.0e-4:
+                    continue
+                risk_mat.append(frac_value * tp.risk)
+        if len(risk_mat) == 0:
+            return None
+        risk_mat = np.stack(risk_mat, axis=1)
+        solver = HeuristicSubsetSolver(risk_mat, k)
+        solver.solve()
+        if solver.value >= self.quantile_value + 1.0e-4:
+            return np.where(solver.subset)[0]
+        else:
+            return None
 
     def check(self, subset, cut_value):
         actual_value = 0.0
