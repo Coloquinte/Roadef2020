@@ -330,7 +330,7 @@ class Problem:
             params.mip.tolerances.mipgap = 0.1
         else:
             params.mip.tolerances.mipgap = 1.0e-6
-        params.mip.limits.cutsfactor = 100.0
+        #params.mip.limits.cutsfactor = 100.0
         params.mip.display = 3
         #params.emphasis.mip = 2  # Optimality
         params.mip.strategy.file = 2  # Reduce memory usage by saving to disk
@@ -531,27 +531,37 @@ class Problem:
                     coefs.append(-risk[subset].min())
         return rhs, coefs, decisions
 
-    def get_subset_constraint(self, time, subset, intervention_times=()):
+    def get_subset_constraint(self, time, subset, intervention_times=None):
         """
         Get a subset constraint for these intervention times
         """
+        if intervention_times is None:
+            intervention_times = dict()
         self.check_subset(time, subset)
-        rhs = 0.0
-        quantile_risk = self.get_quantile_risk(time, intervention_times)
-        decisions = [it for it in intervention_times]
+
+        risk = np.zeros(self.quantile_risk.nb_scenarios[time])
+        for it, beta in intervention_times.items():
+            risk += beta * self.quantile_risk.risk_from_times[time][it]
+        base_risk = risk[subset].min()
+
+        decisions = []
         coefs = []
-        for it in intervention_times:
-            contrib = self.quantile_risk.risk_from_times[time][it][subset].max()
+        rhs = base_risk - self.args.tolerance
+        for it, beta in intervention_times.items():
+            data = self.quantile_risk.risk_from_times[time][it][subset]
+            contrib = beta * data.max() + (1-beta) * data.min()
+            decisions.append(it)
             coefs.append(-contrib)
-        rhs = quantile_risk + sum(coefs) - self.args.tolerance
+            rhs -= beta * data.max()
 
         # Add other interventions and times as required
-        interventions_used = set(intervention_times)
+        interventions_used = set(intervention_times.keys())
         for it, risk in self.quantile_risk.risk_from_times[time].items():
             if it not in interventions_used:
                 decisions.append(it)
                 coefs.append(-risk[subset].min())
         return rhs, coefs, decisions
+
 
 class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
     def __init__(self, env):
@@ -625,6 +635,8 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                     rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
+            elif model_quantile_risk > quantile_risk + 1.0e-2:
+                print(f"WARNING: the quantile risk found at time {time} is pessimistic ({model_quantile_risk:.2f} vs {quantile_risk:.2f})")
         if tot_mean_risk + tot_excess_risk < pb.best_value:
             pb.best_value = tot_mean_risk + tot_excess_risk
             if self.pb.args.verbosity >= 2:
@@ -650,7 +662,6 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
     def register_pb(self, pb):
         self.pb = pb
         self.nb_fail = [0 for i in range(pb.nb_timesteps)]
-        self.subsets = [set() for i in range(pb.nb_timesteps)]
 
     def add_constraint(self, time, rhs, coefs, decisions):
         pb = self.pb
@@ -685,15 +696,13 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         for time in range(pb.nb_timesteps):
             if self.nb_fail[time] >= 2:
                 continue
-            subset = constraint_gen.SubsetCutCoefModeler.run(pb, time, values, quantile_value=quantile_values[time])
+            _, subset_val = constraint_gen.SubsetCutCoefModeler.run(pb, time, values, quantile_value=quantile_values[time])
+            subset, betas, generic_val = constraint_gen.GenericSubsetCutModeler.run(pb, time, values, quantile_value=quantile_values[time])
+            #print(f"Subset value is {subset_val:.2f}, generic {generic_val:.2f}, original {quantile_values[time]:.2f}")
             if subset is None:
                 self.nb_fail[time] += 1
                 continue
-            if tuple(subset) in self.subsets[time]:
-                # Due to CPLEX tolerance, we may get the same subset several times
-                continue
-            self.subsets[time].add(tuple(subset))
-            rhs, coefs, decisions = pb.get_subset_constraint(time, subset)
+            rhs, coefs, decisions = pb.get_subset_constraint(time, subset, betas)
             self.add_constraint(time, rhs, coefs, decisions)
 
         if pb.log_file is not None:

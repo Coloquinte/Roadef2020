@@ -69,15 +69,19 @@ class HeuristicSubsetSolver:
 
     def solve(self):
         candidates = []
-        self.restart()
-        for i in range(1000):
-            choice = np.random.rand()
-            if choice <= 0.8:
-                self.best_move()
-            elif choice <= 0.95:
-                self.greedy(2)
-            else:
-                self.greedy(3)
+        for i in range(10):
+            self.restart()
+            for i in range(1000):
+                choice = np.random.rand()
+                if choice <= 0.8:
+                    self.best_move()
+                elif choice <= 0.95:
+                    self.greedy(2)
+                else:
+                    self.greedy(3)
+            candidates.append(self.subset)
+        best_ind = np.argmax([self.compute_value(s) for s in candidates])
+        self.subset = candidates[best_ind]
 
 
 class SubsetCutCoefModeler:
@@ -188,12 +192,86 @@ class SubsetCutCoefModeler:
         values = [x > 0.5 for x in values]
         cut_value = self.m.total_risk.solution_value
         subset = np.array([i for i, x in enumerate(values) if x])
+        #print(f"Subset cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
         if cut_value > self.quantile_value + 1.0e-4:
             #print(f"Stronger cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
-            return subset
+            return subset, cut_value
         else:
             #print(f"Weaker cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+            return None, cut_value
+
+
+class GenericSubsetCutModeler:
+    @staticmethod
+    def run(pb, time, values, quantile_value):
+        modeler = GenericSubsetCutModeler(pb, time, values, quantile_value)
+        if len(modeler.values) == 0:
             return None
+        modeler.create_model()
+        modeler.m.solve()
+        return modeler.get_result()
+
+    def __init__(self, problem, time, values, quantile_value):
+        self.pb = problem
+        self.time = time
+        self.intervention_risks = None
+        self.values = values
+        self.quantile_value = quantile_value
+
+        # Model and decisions
+        self.m = Model(name="user_cut_coef_model")
+        self.subset_decs = None
+        self.intervention_vals = None
+
+    def create_model(self):
+        self.subset_decs = [self.m.binary_var(name=f"in_subset_{i}") for i in range(self.pb.quantile_risk.nb_scenarios[self.time])]
+        n = self.pb.quantile_risk.nb_scenarios[self.time]
+        k = n - self.pb.quantile_risk.quantile_scenario[self.time]
+        scenario_index = self.pb.quantile_risk.quantile_scenario[self.time]
+        self.m.add_constraint(self.m.sum(self.subset_decs) == k)
+        self.intervention_vals = []
+        self.remaining_risk = [[] for i in range(n)]
+        self.betas = dict()
+        for intervention in self.values.keys():
+            for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
+                if tp.time not in self.values[intervention]:
+                    continue
+                frac_value = self.values[intervention][tp.time]
+                if frac_value <= 1.0e-4:
+                    continue
+                min_dec = self.m.continuous_var(name=f"min_bound_{intervention}_{tp.time}")
+                max_dec = self.m.continuous_var(name=f"max_bound_{intervention}_{tp.time}")
+                beta = self.m.continuous_var(name=f"beta_{intervention}_{tp.time}", lb=0.0, ub=1.0)
+                self.intervention_vals.append(min_dec)
+                self.intervention_vals.append(max_dec)
+                for i, risk in enumerate(tp.risk):
+                    self.m.add_indicator(self.subset_decs[i], min_dec <= frac_value * risk * (1-beta))
+                for i, risk in enumerate(tp.risk):
+                    self.m.add_indicator(self.subset_decs[i], max_dec <= (frac_value-1) * risk * beta)
+                for i, risk in enumerate(tp.risk):
+                    self.remaining_risk[i].append(risk * beta)
+                self.betas[(intervention, tp.time)] = beta
+        self.remaining_risk_dec = self.m.continuous_var(name=f"remaining_risk")
+        for i, risks in enumerate(self.remaining_risk):
+            self.m.add_indicator(self.subset_decs[i], self.remaining_risk_dec <= self.m.sum(risks))
+        self.m.total_risk = self.m.sum(self.intervention_vals) + self.remaining_risk_dec
+        self.m.maximize(self.m.total_risk)
+
+    def get_result(self):
+        values = [dec.solution_value > 0.5 for dec in self.subset_decs]
+        betas = {a: dec.solution_value for a, dec in self.betas.items()}
+        cut_value = self.m.total_risk.solution_value
+        subset = np.array([i for i, x in enumerate(values) if x])
+        #if any(b > 1.0e-4 for b in betas.values()):
+        #    print("Betas: ", list(betas.values()))
+        #print(f"General cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+        if cut_value > self.quantile_value + 1.0e-4:
+            #print(f"Stronger cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+            return subset, betas, cut_value
+        else:
+            #print(f"Weaker cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
+            return None, None, cut_value
+
 
 
 class UserCutCoefModeler:
