@@ -688,7 +688,7 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         values = dict()
         for i in range(pb.nb_interventions):
             for t, v in enumerate(intervention_values[i]):
-                if v > 1.0e-6:
+                if v > 1.0e-4:
                     if i not in values:
                         values[i] = dict()
                     values[i][t] = v

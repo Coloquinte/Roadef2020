@@ -226,8 +226,8 @@ class GenericSubsetCutModeler:
     def create_model(self):
         self.subset_decs = [self.m.binary_var(name=f"in_subset_{i}") for i in range(self.pb.quantile_risk.nb_scenarios[self.time])]
         n = self.pb.quantile_risk.nb_scenarios[self.time]
-        k = n - self.pb.quantile_risk.quantile_scenario[self.time]
         scenario_index = self.pb.quantile_risk.quantile_scenario[self.time]
+        k = n - scenario_index
         self.m.add_constraint(self.m.sum(self.subset_decs) == k)
         self.intervention_vals = []
         self.remaining_risk = [[] for i in range(n)]
@@ -237,20 +237,23 @@ class GenericSubsetCutModeler:
                 if tp.time not in self.values[intervention]:
                     continue
                 frac_value = self.values[intervention][tp.time]
-                if frac_value <= 1.0e-4:
-                    continue
                 min_dec = self.m.continuous_var(name=f"min_bound_{intervention}_{tp.time}")
                 max_dec = self.m.continuous_var(name=f"max_bound_{intervention}_{tp.time}")
                 beta = self.m.continuous_var(name=f"beta_{intervention}_{tp.time}", lb=0.0, ub=1.0)
                 self.intervention_vals.append(min_dec)
                 self.intervention_vals.append(max_dec)
+                self.betas[(intervention, tp.time)] = beta
                 for i, risk in enumerate(tp.risk):
                     self.m.add_indicator(self.subset_decs[i], min_dec <= frac_value * risk * (1-beta))
                 for i, risk in enumerate(tp.risk):
                     self.m.add_indicator(self.subset_decs[i], max_dec <= (frac_value-1) * risk * beta)
                 for i, risk in enumerate(tp.risk):
                     self.remaining_risk[i].append(risk * beta)
-                self.betas[(intervention, tp.time)] = beta
+                # Simple bounds to speed up the solution process
+                min_bound = np.partition(tp.risk, scenario_index)[scenario_index]
+                self.m.add_constraint(min_dec <= frac_value * min_bound * (1-beta))
+                max_bound = np.partition(tp.risk, k-1)[k-1]
+                self.m.add_constraint(max_dec <= (frac_value-1) * max_bound * beta)
         self.remaining_risk_dec = self.m.continuous_var(name=f"remaining_risk")
         for i, risks in enumerate(self.remaining_risk):
             self.m.add_indicator(self.subset_decs[i], self.remaining_risk_dec <= self.m.sum(risks))
@@ -262,8 +265,6 @@ class GenericSubsetCutModeler:
         betas = {a: dec.solution_value for a, dec in self.betas.items()}
         cut_value = self.m.total_risk.solution_value
         subset = np.array([i for i, x in enumerate(values) if x])
-        #if any(b > 1.0e-4 for b in betas.values()):
-        #    print("Betas: ", list(betas.values()))
         #print(f"General cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
         if cut_value > self.quantile_value + 1.0e-4:
             #print(f"Stronger cut at time {self.time} with {cut_value:.2f} risk vs {self.quantile_value:.2f}")
