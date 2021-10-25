@@ -315,10 +315,10 @@ class Problem:
         m.minimize(m.mean_risk_objective + m.excess_risk_objective)
 
         # Additional useful constraints for better bounds
-        #self.add_simple_root_constraints()
         if args.root_constraints:
-            #self.add_simple_root_constraints()
             self.add_root_constraints()
+        elif not args.no_root_constraints:
+            self.add_simple_root_constraints()
 
         if self.args.verbosity >= 2:
             print("Finished model creation")
@@ -380,6 +380,7 @@ class Problem:
                 continue
             expr = [self.quantile_risk_dec[i]]
             for intervention in range(self.nb_interventions):
+                # TODO: compute a non-trivial subset
                 for tp in self.quantile_risk.risk_origin[i][intervention]:
                     expr.append(- tp.min * self.intervention_decisions[intervention][tp.time])
                 self.model.add_constraint(self.model.sum(expr) >= -self.args.tolerance)
@@ -860,7 +861,7 @@ if __name__ == '__main__':
 
     g1 = parser.add_mutually_exclusive_group()
     g1.add_argument('--root-constraints', action='store_true', dest="root_constraints", help="Enable additional root constraints")
-    g1.add_argument('--no-root-constraints', action='store_false', dest="root_constraints", help="Disable additional root constraints")
+    g1.add_argument('--no-root-constraints', action='store_true', dest="no_root_constraints", help="Disable all root constraints")
 
     g2 = parser.add_mutually_exclusive_group()
     g2.add_argument('--subset-constraints', action='store_true', dest="subset_constraints", help="Enable subset lazy constraints")
@@ -869,7 +870,7 @@ if __name__ == '__main__':
     parser.add_argument('--polyhedral-cuts', action='store_true', help="Enable polyhedral cuts at root node")
     parser.add_argument('--subset-cuts', action='store_true', help="Enable subset cuts during solve")
 
-    parser.set_defaults(root_constraints=True, subset_constraints=True)
+    parser.set_defaults(subset_constraints=True)
 
     args = parser.parse_args()
     if not args.name and not args.instance_file:

@@ -232,6 +232,7 @@ class GenericSubsetCutModeler:
         self.intervention_vals = []
         self.remaining_risk = [[] for i in range(n)]
         self.betas = dict()
+        overall_bound = []
         for intervention in self.values.keys():
             for tp in self.pb.quantile_risk.risk_origin[self.time][intervention]:
                 if tp.time not in self.values[intervention]:
@@ -243,6 +244,7 @@ class GenericSubsetCutModeler:
                 self.intervention_vals.append(min_dec)
                 self.intervention_vals.append(max_dec)
                 self.betas[(intervention, tp.time)] = beta
+                # min over the subset
                 for i, risk in enumerate(tp.risk):
                     self.m.add_indicator(self.subset_decs[i], min_dec <= frac_value * risk * (1-beta))
                 for i, risk in enumerate(tp.risk):
@@ -250,13 +252,19 @@ class GenericSubsetCutModeler:
                 for i, risk in enumerate(tp.risk):
                     self.remaining_risk[i].append(risk * beta)
                 # Simple bounds to speed up the solution process
+                # Minimum of positive elements
                 min_bound = np.partition(tp.risk, scenario_index)[scenario_index]
                 self.m.add_constraint(min_dec <= frac_value * min_bound * (1-beta))
+                # Minimum of negative elements due to (frac_value-1) becomes a max
                 max_bound = np.partition(tp.risk, k-1)[k-1]
                 self.m.add_constraint(max_dec <= (frac_value-1) * max_bound * beta)
+                # Bound on the remaining risk
+                overall_bound.append(tp.risk.max() * beta)
         self.remaining_risk_dec = self.m.continuous_var(name=f"remaining_risk")
         for i, risks in enumerate(self.remaining_risk):
             self.m.add_indicator(self.subset_decs[i], self.remaining_risk_dec <= self.m.sum(risks))
+        # Pessimistic bound
+        self.m.add_constraint(self.remaining_risk_dec <= self.m.sum(overall_bound))
         self.m.total_risk = self.m.sum(self.intervention_vals) + self.remaining_risk_dec
         self.m.maximize(self.m.total_risk)
 
