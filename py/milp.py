@@ -625,7 +625,7 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
             model_mean_risk  = self.get_values(pb.mean_risk_dec[time].index)
             tot_excess_risk += max(quantile_risk - mean_risk, 0.0)
             intervention_times = tuple((inter, start_times[inter]) for inter in contributors[time])
-            if model_quantile_risk < quantile_risk - 1.0e-7:
+            if model_quantile_risk < quantile_risk - 1.0e-6:
                 if pb.log_file is not None:
                     print(f"Adding lazy constraint at time {time} with gap {quantile_risk-model_quantile_risk:.4f} "
                           f"(value {quantile_risk:.4f}, target {model_quantile_risk:.4f}) "
@@ -678,13 +678,13 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         self.nb_constraints += 1
 
     def __call__(self):
-        #if self.get_node_ID() != 0:
-        #    # Only at root node, this stuff is heavy enough as it is
-        #    return
+        if self.get_node_ID() != 0:
+            # Only at root node, this stuff is heavy enough as it is
+            return
+        if self.nb_calls >= 50:
+            return
         pb = self.pb
         self.nb_calls += 1
-        #if self.nb_calls >= 50:
-        #    return
         if pb.log_file is not None:
             call_start_time = time_mod.perf_counter()
         intervention_values = [
@@ -699,11 +699,9 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
                     values[i][t] = v
         quantile_values = self.get_values([d.index for d in pb.quantile_risk_dec])
         for time in range(pb.nb_timesteps):
-            if self.nb_fail[time] >= 2:
-                continue
-            _, subset_val = constraint_gen.SubsetCutCoefModeler.run(pb, time, values, quantile_value=quantile_values[time])
+            #if self.nb_fail[time] >= 2:
+            #    continue
             subset, betas, generic_val = constraint_gen.GenericSubsetCutModeler.run(pb, time, values, quantile_value=quantile_values[time])
-            #print(f"Subset value is {subset_val:.2f}, generic {generic_val:.2f}, original {quantile_values[time]:.2f}")
             if subset is None:
                 self.nb_fail[time] += 1
                 continue
