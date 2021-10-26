@@ -339,9 +339,13 @@ class Problem:
         params.randomseed = args.seed
 
         if args.subset_cuts:
+            if self.args.verbosity >= 2:
+                print(f"Subset cuts are enabled")
             cut_cb = m.register_callback(QuantileCutSubsetCallback)
             cut_cb.register_pb(self)
         if args.full and args.polyhedral_cuts:
+            if self.args.verbosity >= 2:
+                print(f"Polyhedral cuts are enabled")
             cut_cb = m.register_callback(QuantileCutPolyhedralCallback)
             cut_cb.register_pb(self)
 
@@ -636,7 +640,7 @@ class QuantileLazyCallback(ConstraintCallbackMixin, LazyConstraintCallback):
                     rhs, coefs, decisions = pb.get_lazy_constraint(time, intervention_times, extend=True)
                     self.add_constraint(time, rhs, coefs, decisions)
                 self.nb_calls += 1
-            elif model_quantile_risk > quantile_risk + 1.0e-2:
+            elif model_quantile_risk > quantile_risk + 1.0e-2 and model_quantile_risk > mean_risk + 1.0e-2:
                 print(f"WARNING: the quantile risk found at time {time} is pessimistic ({model_quantile_risk:.2f} vs {quantile_risk:.2f})")
         if tot_mean_risk + tot_excess_risk < pb.best_value:
             pb.best_value = tot_mean_risk + tot_excess_risk
