@@ -15,12 +15,12 @@ In order to obtain faster solution times, we chose not to model the risk per sce
 We then introduce new cutting plane families that allow us to strengthen the relaxation at the root node.
 
 To reproduce the conditions of the paper, use the options:
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints --full``` for the full model (Full)
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints --full``` for the full model with additional "subset constraints" (Full+S)
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --polyhedral-cuts --no-root-constraints --full``` for the full model with cutting planes for the quantile function at the root node (Full+C)
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints``` for the constraint generation method (CGen)
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints``` for the constraint generation method with additional "subset constraints" (CGen+S)
-* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --subset-cuts --no-root-constraints```  for the constraint generation method with the best "subset constraints" at the root node (very slow) (Full+C)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints --full -v3``` for the full model (Full)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints --full -v3``` for the full model with additional "subset constraints" (Full+S)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --polyhedral-cuts --no-root-constraints --full -v3``` for the full model with cutting planes for the quantile function at the root node (Full+C)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints -v3``` for the constraint generation method (CGen)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints -v3``` for the constraint generation method with additional "subset constraints" (CGen+S)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --subset-cuts --no-root-constraints -v3```  for the constraint generation method with the best "subset constraints" at the root node (very slow) (Full+C)
 
 ## Beam search
 
