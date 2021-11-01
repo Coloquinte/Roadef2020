@@ -681,7 +681,7 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         if self.get_node_ID() != 0:
             # Only at root node, this stuff is heavy enough as it is
             return
-        if self.nb_calls >= 50:
+        if self.nb_calls >= 20:
             return
         pb = self.pb
         self.nb_calls += 1

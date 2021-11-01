@@ -208,6 +208,7 @@ class GenericSubsetCutModeler:
         if len(modeler.values) == 0:
             return None
         modeler.create_model()
+        modeler.m.parameters.timelimit = 20
         modeler.m.solve()
         return modeler.get_result()
 
