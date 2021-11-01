@@ -11,9 +11,16 @@ Simultaneously, our heuristic method uses beam search with a simple bounding pro
 ## MILP model
 
 We implemented a typical MILP model with indicator variables to model the quantiles exactly. This is, of course, extremely difficult to solve.
-In order to obtain faster solution times, we chose not to model the risk per scenario at all, and instead to focus on the quantile value as a function of the interventions present at a given timestep.
-In our simplest model, the function's landscape is built on-demand using lazy constraints when an incumbent solution is found.
-We then introduce new indicator cuts that allow us to strengthen the relaxation at the root node.
+In order to obtain faster solution times, we chose not to model the risk per scenario directly, and the function's landscape is built on-demand using lazy constraints when an incumbent solution is found.
+We then introduce new cutting plane families that allow us to strengthen the relaxation at the root node.
+
+To reproduce the conditions of the paper, use the options:
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints --full``` for the full model (Full)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints --full``` for the full model with additional "subset constraints" (Full+S)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --polyhedral-cuts --no-root-constraints --full``` for the full model with cutting planes for the quantile function at the root node (Full+C)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --no-root-constraints``` for the constraint generation method (CGen)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --root-constraints``` for the constraint generation method with additional "subset constraints" (CGen+S)
+* ```py/milp.py -p INSTANCE.json -o SOL.txt -v3 --subset-cuts --no-root-constraints```  for the constraint generation method with the best "subset constraints" at the root node (very slow) (Full+C)
 
 ## Beam search
 
