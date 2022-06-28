@@ -663,10 +663,12 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         self.pb = None
         self.nb_calls = 0
         self.nb_constraints = 0
+        self.max_nb_calls = 0
 
     def register_pb(self, pb):
         self.pb = pb
         self.nb_fail = [0 for i in range(pb.nb_timesteps)]
+        self.max_nb_calls = self.pb.args.subset_cuts_rounds
 
     def add_constraint(self, time, rhs, coefs, decisions):
         pb = self.pb
@@ -681,7 +683,7 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
         if self.get_node_ID() != 0:
             # Only at root node, this stuff is heavy enough as it is
             return
-        if self.nb_calls >= 20:
+        if self.nb_calls >= self.max_nb_calls:
             return
         pb = self.pb
         self.nb_calls += 1
@@ -705,6 +707,8 @@ class QuantileCutSubsetCallback(ConstraintCallbackMixin, UserCutCallback):
             if subset is None:
                 self.nb_fail[time] += 1
                 continue
+            if self.pb.args.verbosity >= 3:
+                print(f"Added cut at time {time}: {generic_val:.2f} vs {quantile_values[time]:.2f}")
             rhs, coefs, decisions = pb.get_subset_constraint(time, subset, betas)
             self.add_constraint(time, rhs, coefs, decisions)
 
@@ -871,6 +875,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--polyhedral-cuts', action='store_true', help="Enable polyhedral cuts at root node")
     parser.add_argument('--subset-cuts', action='store_true', help="Enable subset cuts during solve")
+    parser.add_argument("--subset-cuts-time", help="Time per solve for subset cuts", type=float, default=20.0)
+    parser.add_argument("--subset-cuts-rounds", help="Number of rounds to add subset cuts", type=int, default=20)
 
     parser.set_defaults(subset_constraints=True)
 

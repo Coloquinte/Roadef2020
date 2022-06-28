@@ -208,8 +208,10 @@ class GenericSubsetCutModeler:
         if len(modeler.values) == 0:
             return None
         modeler.create_model()
-        modeler.m.parameters.timelimit = 20
-        modeler.m.solve()
+        modeler.m.parameters.timelimit = pb.args.subset_cuts_time
+        s = modeler.m.solve()
+        if s is None or s.solve_status not in [JobSolveStatus.OPTIMAL_SOLUTION, JobSolveStatus.FEASIBLE_SOLUTION]:
+            return None, None, modeler.quantile_value
         return modeler.get_result()
 
     def __init__(self, problem, time, values, quantile_value):
@@ -267,6 +269,7 @@ class GenericSubsetCutModeler:
         # Pessimistic bound
         self.m.add_constraint(self.remaining_risk_dec <= self.m.sum(overall_bound))
         self.m.total_risk = self.m.sum(self.intervention_vals) + self.remaining_risk_dec
+        self.m.add_constraint(self.m.total_risk >= self.quantile_value + 5.0e-5)
         self.m.maximize(self.m.total_risk)
 
     def get_result(self):
