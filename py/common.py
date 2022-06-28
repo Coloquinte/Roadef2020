@@ -6,6 +6,7 @@
 
 import json
 import gzip
+import lzma
 
 RESOURCES_STR = 'Resources'
 SEASONS_STR = 'Seasons'
@@ -29,6 +30,9 @@ def read_json(filename: str):
     """Read a json file and return data as a dict object"""
     if filename.endswith(".gz"):
         with gzip.open(filename, 'r') as f:
+            Instance = json.load(f)
+    elif filename.endswith(".xz"):
+        with lzma.open(filename, 'r') as f:
             Instance = json.load(f)
     else:
         with open(filename, 'r') as f:
